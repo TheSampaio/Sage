@@ -6,18 +6,18 @@ workspace "Sage"
     architecture "x64"
 
     filter "configurations:Debug"
-        defines "LN_DEBUG"
+        defines "_DEBUG"
         symbols "On"
         optimize "Off"
 
     filter "configurations:Release"
-        defines "LN_RELEASE"
+        defines "_RELEASE"
         symbols "Off"
         optimize "Speed"
 
     OutputDir = "%{cfg.buildcfg}/"
 
-    project "Compiler"
+    project "Sage"
     location "Compiler"
     kind "ConsoleApp"
 
@@ -27,11 +27,10 @@ workspace "Sage"
 
     files {
         "%{prj.location}/**.h",
-        "%{prj.location}/**.cpp",
         "%{prj.location}/**.sg",
-        "%{prj.location}/**.sgi",
+        "%{prj.location}/**.cpp",
     }
 
     filter "system:windows"
-        defines "_PLATFORM_WINDOWS_"
+        defines "_PLATFORM_WIN32"
         systemversion "latest"
