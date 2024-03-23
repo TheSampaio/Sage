@@ -1,0 +1,9 @@
+# Directories
+.vs/
+.vscode/
+_Output/
+
+# Files
+*sln
+*.user
+*.vcxproj
