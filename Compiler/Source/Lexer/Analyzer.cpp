@@ -51,7 +51,7 @@ bool Analyzer::Read(const std::string& filePath)
 			std::cout << m_Line << std::endl;
 #endif
 		if (m_Line.size() > 0)
-			m_CommandBufer.push_back(m_Line);
+			m_CommandBuffer.push_back(m_Line);
 	}
 
 	// Closes the file
@@ -69,7 +69,7 @@ bool Analyzer::Write(const std::string& filePath)
 		return false;
 
 	// Writes the file "line by line"
-	for (const auto& command : m_CommandBufer)
+	for (const auto& command : m_CommandBuffer)
 		*m_Writer << command << std::endl;
 
 	// Closes the file
@@ -85,54 +85,54 @@ void Analyzer::GenerateTokens()
 		//	<SAGE>	|	<CPP>
 
 		// Symbols
-		{	" ",		"TT_WHITESPACE"},
-		{	"\n",		"TT_NEW_LINE"},
-		{	"\t",		"TT_TAB"},
-		{	";",		"TT_SEMICOLON"},
-		{	"(",		"TT_PARENTHESIS_BEGIN"},
-		{	")",		"TT_PARENTHESIS_END"},
-		{	"{",		"TT_BRACKET_BEGIN"},
-		{	"}",		"TT_BRACKET_END"},
-		{	"<",		"TT_OPERATOR_LESS"},
-		{	">",		"TT_OPERATOR_GREATER"},
-		{	"=",		"TT_OPERATOR_ASSIGN"},
-		{	"->",		"TT_OPERATOR_ARROW"},
-		{	"::",		"TT_OPERATOR_SCOPE"},
-		{	"&&",		"TT_OPERATOR_AND"},
-		{	"||",		"TT_OPERATOR_OR"},
-		{	"<<",		"TT_SHIFT_LEF"},
-		{	">>",		"TT_SHIFT_RIGHT"},
+		{	" ",		"@WHITESPACE@"},
+		{	"\n",		"@NEW_LINE@"},
+		{	"\t",		"@TAB@"},
+		{	";",		"@SEMICOLON@"},
+		{	"(",		"@PARENTHESIS_BEGIN@"},
+		{	")",		"@PARENTHESIS_END@"},
+		{	"{",		"@BRACKET_BEGIN@"},
+		{	"}",		"@BRACKET_END@"},
+		{	"<",		"@OPERATOR_LESS@"},
+		{	">",		"@OPERATOR_GREATER@"},
+		{	"=",		"@OPERATOR_ASSIGN@"},
+		{	"->",		"@OPERATOR_ARROW@"},
+		{	"::",		"@OPERATOR_SCOPE@"},
+		{	"&&",		"@OPERATOR_AND@"},
+		{	"||",		"@OPERATOR_OR@"},
+		{	"<<",		"@SHIFT_LEF@"},
+		{	">>",		"@SHIFT_RIGHT@"},
 
 		// Math
-		{	"+",		"TT_PLUS"},
-		{	"-",		"TT_MINUS"},
-		{	"*",		"TT_MULTIPLY"},
-		{	"/",		"TT_DIVIDE"},
+		{	"+",		"@PLUS@"},
+		{	"-",		"@MINUS@"},
+		{	"*",		"@MULTIPLY@"},
+		{	"/",		"@DIVIDE@"},
 
 		// Keywords
-		{	"class",	"TT_CLASS"},
-		{	"define",	"TT_DEFINE"},
-		{	"delete",	"TT_DELETE"},
-		{	"fn",		"TT_FUNCTION"},
-		{	"Main",		"TT_ENTRY_POINT"},
-		{	"new",		"TT_NEW"},
-		{	"return",	"TT_RETURN"},
-		{	"use",		"TT_INCLUDE"},
+		{	"class",	"@CLASS@"},
+		{	"define",	"@DEFINE@"},
+		{	"delete",	"@DELETE@"},
+		{	"fn",		"@FUNCTION@"},
+		{	"Main",		"@ENTRY_POINT@"},
+		{	"new",		"@NEW@"},
+		{	"return",	"@RETURN@"},
+		{	"use",		"@INCLUDE@"},
 
 		// Types
-		{	"f32",		"TT_FLOAT_32"},
-		{	"f64",		"TT_FLOAT_64"},
+		{	"f32",		"@FLOAT_32@"},
+		{	"f64",		"@FLOAT_64@"},
 
-		{	"i8",		"TT_INTEGER_8"},
-		{	"i16",		"TT_INTEGER_16"},
-		{	"i32",		"TT_INTEGER_32"},
-		{	"i64",		"TT_INTEGER_64"},
+		{	"i8",		"@INTEGER_8@"},
+		{	"i16",		"@INTEGER_16@"},
+		{	"i32",		"@INTEGER_32@"},
+		{	"i64",		"@INTEGER_64@"},
 
-		{	"u8",		"TT_UNSIGNED_INTEGER_8"},
-		{	"u16",		"TT_UNSIGNED_INTEGER_16"},
-		{	"u32",		"TT_UNSIGNED_INTEGER_32"},
-		{	"u64",		"TT_UNSIGNED_INTEGER_64"},
+		{	"u8",		"@UNSIGNED_INTEGER_8@"},
+		{	"u16",		"@UNSIGNED_INTEGER_16@"},
+		{	"u32",		"@UNSIGNED_INTEGER_32@"},
+		{	"u64",		"@UNSIGNED_INTEGER_64@"},
 
-		{	"str",		"TT_STRING"},
+		{	"str",		"@STRING@"},
 	};
 }

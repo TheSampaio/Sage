@@ -23,7 +23,7 @@ private:
 	std::ifstream* m_Reader;
 	std::ofstream* m_Writer;
 	std::string m_Line;
-	std::vector<std::string> m_CommandBufer;
+	std::vector<std::string> m_CommandBuffer;
 
 	// === Methods ===
 
