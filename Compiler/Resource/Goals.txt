@@ -1,9 +1,0 @@
-[Analizador Lexico]
-• Ler um arquivo; (OK)
-• Percorrer conteúdo "char" por "char"; (OK)
-• Identificar palavras e simbolos; (OK)
-• Converter tudo para tokens. (OK)
-
-[Parser]
-
-[Executer]
