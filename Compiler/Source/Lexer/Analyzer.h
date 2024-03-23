@@ -14,13 +14,16 @@ public:
 
 	// === Methods ===
 
-	bool Read(const std::string& filePath);
+	bool Read(const std::string& file);
+	bool Write(const std::string& file);
 
 private:
 	// === Attributes ===
 
 	std::ifstream* m_Reader;
+	std::ofstream* m_Writer;
 	std::string m_Line;
+	std::vector<std::string> m_CommandBuffer;
 
 	// === Methods ===
 

@@ -6,6 +6,7 @@ Compiler/Resource/
 
 # Files
 *.filters
-*sln
+*.sgc
+*.sln
 *.user
 *.vcxproj

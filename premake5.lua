@@ -6,18 +6,18 @@ workspace "Sage"
     architecture "x64"
 
     filter "configurations:Debug"
-        defines "LN_DEBUG"
+        defines "_DEBUG"
         symbols "On"
         optimize "Off"
 
     filter "configurations:Release"
-        defines "LN_RELEASE"
+        defines "_RELEASE"
         symbols "Off"
         optimize "Speed"
 
     OutputDir = "%{cfg.buildcfg}/"
 
-    project "Compiler"
+    project "Sage"
     location "Compiler"
     kind "ConsoleApp"
 
@@ -25,13 +25,35 @@ workspace "Sage"
     targetdir ("_Output/Bin/" .. OutputDir .. "%{prj.name}")
     objdir    ("_Output/Obj/" .. OutputDir .. "%{prj.name}")
 
+    pchheader("Core.h")
+    pchsource("%{prj.location}/Core.cpp")
+
     files {
         "%{prj.location}/**.h",
         "%{prj.location}/**.cpp",
-        "%{prj.location}/**.sg",
-        "%{prj.location}/**.sgi",
+    }
+
+    includedirs {
+        "%{prj.location}",
     }
 
     filter "system:windows"
-        defines "_PLATFORM_WINDOWS_"
+        defines "_PLATFORM_WIN32"
+        systemversion "latest"
+
+
+    project "Application"
+    location "Application"
+    kind "ConsoleApp"
+
+    -- Output directories
+    targetdir ("_Output/Bin/" .. OutputDir .. "%{prj.name}")
+    objdir    ("_Output/Obj/" .. OutputDir .. "%{prj.name}")
+
+    files {
+        "%{prj.location}/**.sg",
+    }
+
+    filter "system:windows"
+        defines "_PLATFORM_WIN32"
         systemversion "latest"
