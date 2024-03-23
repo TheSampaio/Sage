@@ -25,10 +25,33 @@ workspace "Sage"
     targetdir ("_Output/Bin/" .. OutputDir .. "%{prj.name}")
     objdir    ("_Output/Obj/" .. OutputDir .. "%{prj.name}")
 
+    pchheader("Core.h")
+    pchsource("%{prj.location}/Core.cpp")
+
     files {
         "%{prj.location}/**.h",
-        "%{prj.location}/**.sg",
         "%{prj.location}/**.cpp",
+    }
+
+    includedirs {
+        "%{prj.location}",
+    }
+
+    filter "system:windows"
+        defines "_PLATFORM_WIN32"
+        systemversion "latest"
+
+
+    project "Application"
+    location "Application"
+    kind "ConsoleApp"
+
+    -- Output directories
+    targetdir ("_Output/Bin/" .. OutputDir .. "%{prj.name}")
+    objdir    ("_Output/Obj/" .. OutputDir .. "%{prj.name}")
+
+    files {
+        "%{prj.location}/**.sg",
     }
 
     filter "system:windows"

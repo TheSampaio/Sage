@@ -1,5 +1,5 @@
 #include "Core.h"
-#include "Analyzer.h"
+#include "Lexer/Analyzer.h"
 
 // Pauses and returns an error
 #define RETURN_FAILURE return (std::getchar() != '\0') ? EXIT_FAILURE : EXIT_FAILURE
@@ -10,14 +10,14 @@ int main(int argc, char* argv[])
     Analyzer* analyzer = new Analyzer();
 
 #ifdef _DEBUG
-    const std::string path = "Test/";
+    const std::string path = "../Application/Source/";
     const std::string file = "Main.sg";
 
     // Reads a ".sg" file
     if (!analyzer->Read(path + file))
     {
         // Logs if it failed
-        std::cout << "[ERROR] Failed to read the file \'" << analyzer->fileName.c_str() << "\'.";
+        std::cout << "[ERROR] Failed to read the file \"" << analyzer->fileName.c_str() << "\".";
         RETURN_FAILURE;
     }
 
@@ -25,7 +25,7 @@ int main(int argc, char* argv[])
     if (!analyzer->Write(path + file + "c"))
     {
         // Logs if it failed
-        std::cout << "[ERROR] Failed to write the file \'" << analyzer->fileName.c_str() << "\'.";
+        std::cout << "[ERROR] Failed to write the file \"" << analyzer->fileName.c_str() << "\".";
         RETURN_FAILURE;
     }
 #else
