@@ -4,6 +4,7 @@
 _Output/
 
 # Files
+*.filters
 *sln
 *.user
 *.vcxproj
