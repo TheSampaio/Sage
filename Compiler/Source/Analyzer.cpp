@@ -32,16 +32,20 @@ bool Analyzer::Read(const std::string& filePath)
 	// Reads the file "line by line"
 	while (std::getline(*m_Reader, m_Line))
 	{
+		size_t position = m_Line.find('\t');
+		
 		// Iterates all keywords inside a line
-		for (const auto& token : tokens)
+		for (int i = 0; i < m_Line.size(); i++)
 		{
-			size_t position = 0;
-
-			// Replaces keywords by tokens if it exists
-			while ((position = m_Line.find(token.first, position)) != std::string::npos)
+			switch (m_Line.at(i))
 			{
-				m_Line.replace(position, token.first.length(), token.second);
-				position += token.second.length();
+			case '\t':
+				m_Line.replace(position, sizeof('\t'), 0, '\0');
+				break;
+
+			case ' ':
+				m_Line.at(i) = '\n';
+				break;
 			}
 		}
 
@@ -85,54 +89,54 @@ void Analyzer::GenerateTokens()
 		//	<SAGE>	|	<CPP>
 
 		// Symbols
-		{	" ",		"@WHITESPACE@"},
 		{	"\n",		"@NEW_LINE@"},
 		{	"\t",		"@TAB@"},
 		{	";",		"@SEMICOLON@"},
-		{	"(",		"@PARENTHESIS_BEGIN@"},
-		{	")",		"@PARENTHESIS_END@"},
-		{	"{",		"@BRACKET_BEGIN@"},
-		{	"}",		"@BRACKET_END@"},
-		{	"<",		"@OPERATOR_LESS@"},
-		{	">",		"@OPERATOR_GREATER@"},
-		{	"=",		"@OPERATOR_ASSIGN@"},
-		{	"->",		"@OPERATOR_ARROW@"},
-		{	"::",		"@OPERATOR_SCOPE@"},
-		{	"&&",		"@OPERATOR_AND@"},
-		{	"||",		"@OPERATOR_OR@"},
-		{	"<<",		"@SHIFT_LEF@"},
-		{	">>",		"@SHIFT_RIGHT@"},
+		{	"(",		"@PARENTHESIS_LEFT@"},
+		{	")",		"@PARENTHESIS_RIGHT@"},
+		{	"{",		"@BRACKET_LEFT@"},
+		{	"}",		"@BRACKET_RIGHT@"},
+
+		{	"<",		"LESS"},
+		{	">",		"GREATER"},
+		{	"=",		"ASSIGN"},
+		{	"->",		"ARROW"},
+		{	"::",		"SCOPE"},
+		{	"&&",		"AND"},
+		{	"||",		"OR"},
+		{	"<<",		"SHIFT_LEFT"},
+		{	">>",		"SHIFT_RIGHT"},
 
 		// Math
-		{	"+",		"@PLUS@"},
-		{	"-",		"@MINUS@"},
-		{	"*",		"@MULTIPLY@"},
-		{	"/",		"@DIVIDE@"},
+		{	"+",		"PLUS"},
+		{	"-",		"MINUS"},
+		{	"*",		"MULTIPLY"},
+		{	"/",		"DIVIDE"},
 
 		// Keywords
-		{	"class",	"@CLASS@"},
-		{	"define",	"@DEFINE@"},
-		{	"delete",	"@DELETE@"},
-		{	"fn",		"@FUNCTION@"},
-		{	"Main",		"@ENTRY_POINT@"},
-		{	"new",		"@NEW@"},
-		{	"return",	"@RETURN@"},
-		{	"use",		"@INCLUDE@"},
+		{	"class",	"CLASS"},
+		{	"define",	"DEFINE"},
+		{	"delete",	"DELETE"},
+		{	"fn",		"FUNCTION"},
+		{	"Main",		"ENTRY_POINT"},
+		{	"new",		"NEW"},
+		{	"return",	"RETURN"},
+		{	"use",		"INCLUDE"},
 
 		// Types
-		{	"f32",		"@FLOAT_32@"},
-		{	"f64",		"@FLOAT_64@"},
+		{	"f32",		"FLOAT_32"},
+		{	"f64",		"FLOAT_64"},
 
-		{	"i8",		"@INTEGER_8@"},
-		{	"i16",		"@INTEGER_16@"},
-		{	"i32",		"@INTEGER_32@"},
-		{	"i64",		"@INTEGER_64@"},
+		{	"i8",		"INT_8"},
+		{	"i16",		"INT_16"},
+		{	"i32",		"INT_32"},
+		{	"i64",		"INT_64"},
 
-		{	"u8",		"@UNSIGNED_INTEGER_8@"},
-		{	"u16",		"@UNSIGNED_INTEGER_16@"},
-		{	"u32",		"@UNSIGNED_INTEGER_32@"},
-		{	"u64",		"@UNSIGNED_INTEGER_64@"},
+		{	"u8",		"UINT_8"},
+		{	"u16",		"UINT_16"},
+		{	"u32",		"UINT_32"},
+		{	"u64",		"UINT_64"},
 
-		{	"str",		"@STRING@"},
+		{	"str",		"STRING"},
 	};
 }

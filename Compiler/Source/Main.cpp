@@ -1,5 +1,5 @@
 #include "Core.h"
-#include "Lexer/Analyzer.h"
+#include "Analyzer.h"
 
 // Pauses and returns an error
 #define RETURN_FAILURE return (std::getchar() != '\0') ? EXIT_FAILURE : EXIT_FAILURE
