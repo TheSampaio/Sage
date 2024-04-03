@@ -38,6 +38,11 @@ namespace Sage
                         line = Separate(line, ";");
                         line = Separate(line, "::");
 
+                        line = Separate(line, "+");
+                        line = Separate(line, "-");
+                        line = Separate(line, "*");
+                        line = Separate(line, "/");
+
                         line = Separate(line, "(");
                         line = Separate(line, ")");
                         line = Separate(line, "[");
@@ -124,7 +129,7 @@ namespace Sage
         private bool IsOperator(string token)
         {
             // List of operators
-            string[] operators = { "=", ";", "->", "(", ")", "[", "]", "{", "}" };
+            string[] operators = { "+", "-", "*", "/", "=", ";", "->", "(", ")", "[", "]", "{", "}" };
             return Array.Exists(operators, op => op == token);
         }
 
