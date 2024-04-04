@@ -1,7 +1,0 @@
-use std;
-
-fn Main() -> i32
-{
-	std::cout << "Hello World!" << std::endl;
-	return 0;
-}

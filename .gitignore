@@ -1,12 +1,9 @@
 # Directories
 .vs/
 .vscode/
-_Output/
-Compiler/Resource/
+Compiler/bin/
+Compiler/obj/
 
 # Files
-*.filters
 *.sgc
-*.sln
 *.user
-*.vcxproj
