@@ -1,8 +1,8 @@
 ﻿use Console;
 
-function Main() -> i32
+func Main() -> i32
 {
-	// Console::Write("Hello World");
+	// Console::Print("Hello World");
 
 	i32 number01 = 5;
 	i32 number02 = 5;
