@@ -65,6 +65,12 @@ namespace Sage.Core
                     Console.WriteLine($"{indent}Id: {id.Name}");
                     break;
 
+                case InterpolatedStringNode interpolated:
+                    Console.WriteLine($"{indent}Interpolated String:");
+                    foreach (var part in interpolated.Parts)
+                        Print(part, indent + "  | ");
+                    break;
+
                 default:
                     Console.WriteLine($"{indent}Unknown Node: {node.GetType().Name}");
                     break;
