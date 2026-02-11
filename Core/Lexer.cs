@@ -13,7 +13,7 @@ namespace Sage.Core
         private static readonly Dictionary<string, TokenType> Keywords = new Dictionary<string, TokenType>
         {
             { "use", TokenType.Keyword_Use },
-            { "func", TokenType.Keyword_Func },
+            { "function", TokenType.Keyword_Func },
             { "return", TokenType.Keyword_Return },
             { "i32", TokenType.Type_I32 },
             // TODO: Add more types here (u8, i64, etc)
