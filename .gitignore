@@ -1,9 +1,11 @@
 # Directories
 .vs/
 .vscode/
-Compiler/bin/
-Compiler/obj/
+
+bin/
+obj/
 
 # Files
 *.sgc
+*.tok
 *.user

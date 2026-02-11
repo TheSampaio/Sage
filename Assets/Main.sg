@@ -1,0 +1,15 @@
+use Console;
+
+func Main() -> i32
+{
+	// Exemplo de como printar algo no console
+	Console::Print("Hello World");
+
+	// Exemplo de declaração de variáveis e operações
+	i32 number01 = 5;
+	i32 number02 = 5;
+	i32 result = number01 + number02;
+
+	// Pode ser omitido, o padrão é retornar 0
+	return 0;
+}
