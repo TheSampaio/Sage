@@ -2,14 +2,14 @@ use Console;
 
 func Main() -> i32
 {
-	// Exemplo de como printar algo no console
+	// Example of how to print something to the console
 	Console::Print("Hello World");
 
-	// Exemplo de declaração de variáveis e operações
+	// Example of declaring variables and operations
 	i32 number01 = 5;
 	i32 number02 = 5;
 	i32 result = number01 + number02;
 
-	// Pode ser omitido, o padrão é retornar 0
+	// Can be omitted, default is to return 0
 	return 0;
 }
