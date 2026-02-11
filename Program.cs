@@ -24,22 +24,34 @@ namespace Sage
             {
                 Console.WriteLine("1. Lexing...");
                 string sourceCode = File.ReadAllText(inputPath);
-                Lexer lexer = new Lexer(sourceCode);
+                Lexer lexer = new(sourceCode);
                 List<Token> tokens = lexer.Tokenize();
 
                 // Save tokens for debug
 #if DEBUG
-                using (StreamWriter writer = new StreamWriter(outputPath))
+                using (StreamWriter writer = new(outputPath))
                 {
                     foreach (Token token in tokens)
                         if (token.Type != TokenType.EndOfFile) writer.WriteLine(token.ToString());
                 }
 #endif
                 Console.WriteLine("2. Parsing...");
-                Parser parser = new Parser(tokens);
+                Parser parser = new(tokens);
                 ProgramNode ast = parser.Parse();
 
+                Console.WriteLine("3. Semantic Analysis...");
+                SemanticAnalyzer analyzer = new();
+                analyzer.Analyze(ast);
+
+                Console.WriteLine("4. Generating Code (C++)...");
+                CodeGenerator generator = new CodeGenerator();
+                string cppCode = generator.Generate(ast);
+
+                string cppOutputPath = Path.Combine(projectRoot, "Assets", "Main.cpp");
+                File.WriteAllText(cppOutputPath, cppCode);
+
                 Console.WriteLine("Build successful!");
+                Console.WriteLine($"Output C++: {cppOutputPath}");
                 Console.WriteLine($"AST created with {ast.Statements.Count} top-level statements.");
 
                 Console.WriteLine("\n--- AST Structure ---");

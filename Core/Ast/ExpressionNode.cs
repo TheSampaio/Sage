@@ -52,4 +52,11 @@ namespace Sage.Core.AST
             Arguments = args ?? new List<ExpressionNode>();
         }
     }
+
+    // Represents a string with interpolated expressions (e.g., "Value: {x}")
+    public class InterpolatedStringNode : ExpressionNode
+    {
+        // This list will contain LiteralNodes (for text) and other Expressions (for what's inside { })
+        public List<ExpressionNode> Parts { get; } = new List<ExpressionNode>();
+    }
 }

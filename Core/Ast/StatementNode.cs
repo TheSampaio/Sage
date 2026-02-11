@@ -22,7 +22,7 @@
         public UseNode(string name) => ModuleName = name;
     }
 
-    // Represents: func Main() -> i32 { ... }
+    // Represents: function Main() -> i32 { ... }
     public class FunctionDeclarationNode : StatementNode
     {
         public string Name { get; }

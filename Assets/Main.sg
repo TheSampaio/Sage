@@ -1,14 +1,17 @@
 use Console;
 
-func Main() -> i32
+function Main() -> i32
 {
 	// Example of how to print something to the console
-	Console::Print("Hello World");
+	Console::Print("Hello World! Welcome to the Sage programming language!");
 
 	// Example of declaring variables and operations
 	i32 number01 = 5;
 	i32 number02 = 5;
 	i32 result = number01 + number02;
+
+	// Example of printing the result to the console
+	Console::Print("The result of {number01} and {number02} is: {result}");
 
 	// Can be omitted, default is to return 0
 	return 0;
