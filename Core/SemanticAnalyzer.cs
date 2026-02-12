@@ -85,6 +85,10 @@ namespace Sage.Core
                     }
                     break;
 
+                case ParenthesizedExpressionNode paren:
+                    Visit(paren.Expression);
+                    break;
+
                 // Literals don't need validation
                 case LiteralNode _:
                 case UseNode _:

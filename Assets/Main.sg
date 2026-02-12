@@ -2,17 +2,30 @@ use Console;
 
 function Main() -> i32
 {
-	// Example of how to print something to the console
-	Console::Print("Hello World! Welcome to the Sage programming language!");
+    // 1. Testing fixed-width integer types
+    str player_name = "Alice";
+    u8 player_health = 100;
+    i32 score = 2500;
+    u64 big_number = 1000000;
 
-	// Example of declaring variables and operations
-	i32 number01 = 5;
-	i32 number02 = 5;
-	i32 result = number01 + number02;
+    // 2. Testing floating point and boolean
+    f32 speed = 12.5;
+    b8 is_active = 1;
 
-	// Example of printing the result to the console
-	Console::Print("The result of {number01} and {number02} is: {result}");
+    // 3. Testing complex math with parentheses (Order of operations)
+    // Sage should preserve these parentheses in the C++ output
+    i32 calculation = ((score + 500) * 2) / (10 - 5);
 
-	// Can be omitted, default is to return 0
-	return 0;
+    // 4. Testing String Interpolation with multiple types
+    // This will test the new InterpolatedStringNode logic
+    Console::Print("Player Name: {player_name}");
+    Console::Print("Player Health: {player_health}");
+    Console::Print("Current Score: {score}");
+    Console::Print("Movement Speed: {speed}");
+    Console::Print("Calculation Result: {calculation}");
+
+    // 5. Testing a simple greeting
+    Console::Print("Status Check: System is active? {is_active}");
+
+    return 0;
 }
