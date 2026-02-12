@@ -47,7 +47,7 @@ namespace Sage
                 CodeGenerator generator = new CodeGenerator();
                 string cppCode = generator.Generate(ast);
 
-                string cppOutputPath = Path.Combine(projectRoot, "Assets", "Main.cpp");
+                string cppOutputPath = Path.Combine(projectRoot, "Assets", "Main.c");
                 File.WriteAllText(cppOutputPath, cppCode);
 
                 Console.WriteLine("Build successful!");

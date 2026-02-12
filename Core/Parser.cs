@@ -107,18 +107,34 @@ namespace Sage.Core
 
         private FunctionDeclarationNode ParseFunctionDeclaration()
         {
-            // func Name
+            // 1. Nome da função
             string name = Expect(TokenType.Identifier).Value;
 
-            // ( ) -> Parameters (TODO: Implement parameters parsing)
+            // 2. Parâmetros ( )
             Expect(TokenType.OpenParen);
             Expect(TokenType.CloseParen);
 
-            // -> ReturnType
+            // 3. Seta de retorno ->
             Expect(TokenType.Arrow);
-            string returnType = Expect(TokenType.Type_I32).Value; // Currently supporting i32 only for simplicity
 
-            // { Body }
+            // 4. Validação do Tipo de Retorno
+            if (!IsType(Current.Type))
+            {
+                throw new Exception($"[PARSER ERROR] Expected a valid return type after '->' but found {Current.Type} ('{Current.Value}') at line {Current.Line}");
+            }
+
+            string returnType = Current.Value;
+
+            // --- REGRA DE PADRONIZAÇÃO DA MAIN ---
+            if (name == "Main" && returnType != "none")
+            {
+                throw new Exception($"[SAGE ERROR] Standard Violation: The 'Main' function must return 'none', but found '{returnType}' at line {Current.Line}.");
+            }
+
+            // CORREÇÃO: Avançamos a posição manualmente
+            _position++;
+
+            // 5. Corpo { }
             BlockNode body = ParseBlock();
 
             return new FunctionDeclarationNode(name, returnType, body);

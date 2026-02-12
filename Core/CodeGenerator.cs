@@ -23,48 +23,46 @@ namespace Sage.Core
 
         public string Generate(ProgramNode program)
         {
-            // Standard C++ includes
-            WriteLine("#include <iostream>");
-            WriteLine("#include <string>");
-            WriteLine("#include <cstdint>"); // REQUIRED for fixed width integers
+            // 1. Headers Standard do C
+            WriteLine("#include <stdio.h>");
+            WriteLine("#include <stdint.h>");
+            WriteLine("#include <stdbool.h>");
+            WriteLine("#include <string.h>");
             WriteLine();
 
-            // Inside Generate() in CodeGenerator.cs
-            WriteLine("// --- Sage Helper Functions ---");
-            WriteLine("template<typename T> std::string sage_to_string(T val) { return std::to_string(val); }");
-
-            // This prevents the compiler from trying to call to_string on something that is already a string
-            WriteLine("inline std::string sage_to_string(std::string val) { return val; }");
-            WriteLine("inline std::string sage_to_string(const char* val) { return std::string(val); }");
-            WriteLine();
-
-            // Sage Type System Definitions (Mapping to C++)
+            // 2. Definições de Tipos (Usando Typedef do C)
             WriteLine("// --- Sage Type Definitions ---");
-            WriteLine("using u8 = std::uint8_t;");
-            WriteLine("using u16 = std::uint16_t;");
-            WriteLine("using u32 = std::uint32_t;");
-            WriteLine("using u64 = std::uint64_t;");
-            WriteLine("using i8 = std::int8_t;");
-            WriteLine("using i16 = std::int16_t;");
-            WriteLine("using i32 = std::int32_t;");
-            WriteLine("using i64 = std::int64_t;");
-            WriteLine("using f32 = float;");
-            WriteLine("using f64 = double;");
-            WriteLine("using b8 = bool;");
-            WriteLine("using c8 = char;");
-            WriteLine("using none = void;");
+            WriteLine("typedef uint8_t   u8;");
+            WriteLine("typedef uint16_t  u16;");
+            WriteLine("typedef uint32_t  u32;");
+            WriteLine("typedef uint64_t  u64;");
+            WriteLine("typedef int8_t    i8;");
+            WriteLine("typedef int16_t   i16;");
+            WriteLine("typedef int32_t   i32;");
+            WriteLine("typedef int64_t   i64;");
+            WriteLine("typedef float     f32;");
+            WriteLine("typedef double    f64;");
+            WriteLine("typedef bool      b8;");
+            WriteLine("typedef char      c8;");
+            WriteLine("typedef const char* str;");
+            WriteLine("typedef void      none;");
             WriteLine("// -----------------------------");
             WriteLine();
 
-            // Basic Sage Runtime Emulation in C++
-            WriteLine("namespace Console {");
-            _indentationLevel++;
-            WriteLine("void Print(std::string text) { std::cout << text << std::endl; }");
-            WriteLine("void Print(int value) { std::cout << value << std::endl; }");
-            WriteLine("void Print(float value) { std::cout << value << std::endl; }"); // Adicionado suporte básico a float
-            WriteLine("void Print(double value) { std::cout << value << std::endl; }"); // Adicionado suporte básico a double
-            _indentationLevel--;
-            WriteLine("}");
+            // 3. Emulação de Namespace e Overloading (C11 _Generic)
+            WriteLine("// --- Console Module (C Emulation) ---");
+            WriteLine("void _Console_PrintLine_Str(str text) { printf(\"%s\\n\", text); }");
+            WriteLine("void _Console_PrintLine_I32(i32 val)  { printf(\"%d\\n\", val); }");
+            WriteLine("void _Console_PrintLine_F32(f32 val)  { printf(\"%f\\n\", val); }");
+            WriteLine();
+
+            // O Macro _Generic permite que Console_PrintLine funcione com vários tipos no C puro
+            WriteLine("#define Console_PrintLine(x) _Generic((x), \\");
+            WriteLine("    char*: _Console_PrintLine_Str, \\");
+            WriteLine("    const char*: _Console_PrintLine_Str, \\");
+            WriteLine("    i32: _Console_PrintLine_I32, \\");
+            WriteLine("    f32: _Console_PrintLine_F32 \\");
+            WriteLine(")(x)");
             WriteLine();
 
             foreach (var stmt in program.Statements)
@@ -75,16 +73,10 @@ namespace Sage.Core
             return _code.ToString();
         }
 
-        // Helper method to convert Sage types to C++ compatible strings
         private string MapType(string sageType)
         {
-            // Special case for string convenience
-            if (sageType == "str") return "std::string";
-
-            // Special case for 'null' type
-            if (sageType == "null") return "nullptr";
-
-            // Primitives like i32, u8, f32 already have 'using' aliases in the C++ header
+            // Como usamos typedefs no topo do arquivo C, 
+            // a maioria dos nomes (u8, i32, none) já é válida no C gerado.
             return sageType;
         }
 
@@ -97,11 +89,11 @@ namespace Sage.Core
                     break;
 
                 case FunctionDeclarationNode func:
-                    // FIX: Use MapType instead of manual check to support all new types (u8, f32, etc)
                     string returnType = MapType(func.ReturnType);
-                    string cppFuncName = func.Name == "Main" ? "main" : func.Name;
+                    // No C puro, Main vira main
+                    string cFuncName = func.Name == "Main" ? "main" : func.Name;
 
-                    WriteLine($"{returnType} {cppFuncName}()");
+                    WriteLine($"{returnType} {cFuncName}()");
                     Visit(func.Body);
                     break;
 
@@ -115,11 +107,8 @@ namespace Sage.Core
                     break;
 
                 case VariableDeclarationNode varDecl:
-                    // FIX: Removed duplicate variable definition and invalid 'func' usage
-                    string cppType = MapType(varDecl.Type);
-
                     _code.Append(new string('\t', _indentationLevel));
-                    _code.Append($"{cppType} {varDecl.Name} = ");
+                    _code.Append($"{MapType(varDecl.Type)} {varDecl.Name} = ");
                     VisitExpression(varDecl.Initializer);
                     _code.AppendLine(";");
                     break;
@@ -150,46 +139,34 @@ namespace Sage.Core
                     break;
 
                 case LiteralNode lit:
-                    if (lit.TypeName == "string")
+                    // CORREÇÃO: Verifica tanto "string" (do Parser) quanto "str" (do Sage)
+                    if (lit.TypeName == "string" || lit.TypeName == "str")
+                    {
                         _code.Append($"\"{lit.Value}\"");
-                    else if (lit.TypeName == "float" || lit.TypeName == "f32") // Garante sufixo f para floats se necessário
+                    }
+                    // Adiciona sufixo 'f' para floats para evitar warnings de double no C
+                    else if (lit.TypeName == "float" || lit.TypeName == "f32")
+                    {
                         _code.Append($"{lit.Value}f");
+                    }
                     else
+                    {
                         _code.Append(lit.Value);
+                    }
                     break;
 
                 case IdentifierNode id:
-                    _code.Append(id.Name.Replace("::", "::"));
+                    // Transforma Console::PrintLine em Console_PrintLine
+                    _code.Append(id.Name.Replace("::", "_"));
                     break;
 
                 case FunctionCallNode call:
-                    _code.Append(call.FunctionName.Replace("::", "::") + "(");
+                    // Transforma chamada de função com namespace para C style
+                    _code.Append(call.FunctionName.Replace("::", "_") + "(");
                     for (int i = 0; i < call.Arguments.Count; i++)
                     {
                         VisitExpression(call.Arguments[i]);
                         if (i < call.Arguments.Count - 1) _code.Append(", ");
-                    }
-                    _code.Append(")");
-                    break;
-
-                case InterpolatedStringNode interpolated:
-                    _code.Append("(");
-                    for (int i = 0; i < interpolated.Parts.Count; i++)
-                    {
-                        var part = interpolated.Parts[i];
-                        if (part is LiteralNode lit && lit.TypeName == "string")
-                        {
-                            _code.Append($"std::string(\"{lit.Value}\")");
-                        }
-                        else
-                        {
-                            _code.Append("sage_to_string(");
-                            VisitExpression(part);
-                            _code.Append(")");
-                        }
-
-                        if (i < interpolated.Parts.Count - 1)
-                            _code.Append(" + ");
                     }
                     _code.Append(")");
                     break;

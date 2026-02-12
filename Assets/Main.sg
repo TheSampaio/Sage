@@ -1,31 +1,6 @@
-use Console;
+use Console; // Nickname for stdio.h
 
-function Main() -> i32
+func Main() -> none
 {
-    // 1. Testing fixed-width integer types
-    str player_name = "Alice";
-    u8 player_health = 100;
-    i32 score = 2500;
-    u64 big_number = 1000000;
-
-    // 2. Testing floating point and boolean
-    f32 speed = 12.5;
-    b8 is_active = 1;
-
-    // 3. Testing complex math with parentheses (Order of operations)
-    // Sage should preserve these parentheses in the C++ output
-    i32 calculation = ((score + 500) * 2) / (10 - 5);
-
-    // 4. Testing String Interpolation with multiple types
-    // This will test the new InterpolatedStringNode logic
-    Console::Print("Player Name: {player_name}");
-    Console::Print("Player Health: {player_health}");
-    Console::Print("Current Score: {score}");
-    Console::Print("Movement Speed: {speed}");
-    Console::Print("Calculation Result: {calculation}");
-
-    // 5. Testing a simple greeting
-    Console::Print("Status Check: System is active? {is_active}");
-
-    return 0;
+    Console::PrintLine("Hello World!");
 }

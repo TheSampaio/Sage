@@ -13,7 +13,7 @@ namespace Sage.Core
         private static readonly Dictionary<string, TokenType> Keywords = new Dictionary<string, TokenType>
         {
             { "use", TokenType.Keyword_Use },
-            { "function", TokenType.Keyword_Func },
+            { "func", TokenType.Keyword_Func },
             { "return", TokenType.Keyword_Return },
 
             // Primitive Types
@@ -32,7 +32,7 @@ namespace Sage.Core
 
             { "b8", TokenType.Type_B8 },
             { "c8", TokenType.Type_Char },
-            { "str", TokenType.Type_Str }, // Vamos manter 'string' como alias de std::string por enquanto
+            { "str", TokenType.Type_Str },
             { "none", TokenType.Type_Void },
 
             { "null", TokenType.Value_Null }
