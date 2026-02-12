@@ -15,8 +15,27 @@ namespace Sage.Core
             { "use", TokenType.Keyword_Use },
             { "function", TokenType.Keyword_Func },
             { "return", TokenType.Keyword_Return },
+
+            // Primitive Types
+            { "u8", TokenType.Type_U8 },
+            { "u16", TokenType.Type_U16 },
+            { "u32", TokenType.Type_U32 },
+            { "u64", TokenType.Type_U64 },
+
+            { "i8", TokenType.Type_I8 },
+            { "i16", TokenType.Type_I16 },
             { "i32", TokenType.Type_I32 },
-            // TODO: Add more types here (u8, i64, etc)
+            { "i64", TokenType.Type_I64 },
+
+            { "f32", TokenType.Type_F32 },
+            { "f64", TokenType.Type_F64 },
+
+            { "b8", TokenType.Type_B8 },
+            { "c8", TokenType.Type_Char },
+            { "str", TokenType.Type_Str }, // Vamos manter 'string' como alias de std::string por enquanto
+            { "none", TokenType.Type_Void },
+
+            { "null", TokenType.Value_Null }
         };
 
         public Lexer(string text)
@@ -154,9 +173,19 @@ namespace Sage.Core
         {
             int startCol = _column;
             var sb = new StringBuilder();
+            bool hasDecimalSeparator = false;
 
-            while (char.IsDigit(Current))
+            while (char.IsDigit(Current) || (Current == '.' && !hasDecimalSeparator))
             {
+                if (Current == '.')
+                {
+                    // If the next character isn't a digit, this dot might not be part of a number
+                    // (Useful for future member access like object.method)
+                    if (!char.IsDigit(Lookahead)) break;
+
+                    hasDecimalSeparator = true;
+                }
+
                 sb.Append(Current);
                 Next();
             }

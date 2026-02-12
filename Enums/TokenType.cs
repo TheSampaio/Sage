@@ -14,8 +14,17 @@
         Keyword_Func,   // func
         Keyword_Return, // return
 
-        // Primitive Types (Treated as keywords for now)
-        Type_I32,       // i32
+        // Primitive Types
+        Type_U8, Type_U16, Type_U32, Type_U64,
+        Type_I8, Type_I16, Type_I32, Type_I64,
+        Type_F32, Type_F64,
+        Type_B8,       // Boolean
+        Type_Char,     // c8
+        Type_Str,      // high-level string (std::string)
+        Type_Void,     // none
+
+        // Values
+        Value_Null,    // null
 
         // Operators and Punctuation
         Plus,           // +

@@ -298,8 +298,7 @@ namespace Sage.Core
 
         private bool IsType(TokenType type)
         {
-            // Add other types here as the language grows (u8, string, bool, etc.)
-            return type == TokenType.Type_I32;
+            return type >= TokenType.Type_U8 && type <= TokenType.Type_Void;
         }
     }
 }
