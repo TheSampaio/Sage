@@ -59,4 +59,11 @@ namespace Sage.Core.AST
         // This list will contain LiteralNodes (for text) and other Expressions (for what's inside { })
         public List<ExpressionNode> Parts { get; } = new List<ExpressionNode>();
     }
+
+    // Represents an expression wrapped in parentheses (e.g., (a + b))
+    public class ParenthesizedExpressionNode : ExpressionNode
+    {
+        public ExpressionNode Expression { get; }
+        public ParenthesizedExpressionNode(ExpressionNode expression) => Expression = expression;
+    }
 }

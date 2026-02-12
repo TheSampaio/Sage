@@ -197,33 +197,32 @@ namespace Sage.Core
         // Handles literals, identifiers, parentheses, and function calls
         private ExpressionNode ParsePrimary()
         {
-            // Case: (Expression)
+            // 1. Case: (Expression) - Handled at the top for general grouping
             if (Match(TokenType.OpenParen))
             {
                 ExpressionNode expr = ParseExpression();
                 Expect(TokenType.CloseParen);
-                return expr;
+                // We wrap it in a ParenthesizedExpressionNode so the CodeGenerator knows 
+                // it must print the actual parentheses in C++.
+                return new ParenthesizedExpressionNode(expr);
             }
 
-            // Case: Numbers
+            // 2. Case: Numbers
             if (Match(TokenType.Number))
             {
-                // We go back one step to get the token we just matched
                 return new LiteralNode(_tokens[_position - 1].Value, "i32");
             }
 
-            // Case: Strings
+            // 3. Case: Strings & Interpolation
             if (Match(TokenType.String))
             {
                 string fullValue = _tokens[_position - 1].Value;
 
-                // If it doesn't contain '{', it's just a normal string
                 if (!fullValue.Contains("{"))
                 {
                     return new LiteralNode(fullValue, "string");
                 }
 
-                // It's an interpolated string! Let's break it down.
                 var interpolated = new InterpolatedStringNode();
                 int cursor = 0;
 
@@ -232,12 +231,10 @@ namespace Sage.Core
                     int openBrace = fullValue.IndexOf('{', cursor);
                     if (openBrace == -1)
                     {
-                        // Add the remaining text as a literal
                         interpolated.Parts.Add(new LiteralNode(fullValue.Substring(cursor), "string"));
                         break;
                     }
 
-                    // Add text before the '{'
                     if (openBrace > cursor)
                     {
                         interpolated.Parts.Add(new LiteralNode(fullValue.Substring(cursor, openBrace - cursor), "string"));
@@ -246,14 +243,10 @@ namespace Sage.Core
                     int closeBrace = fullValue.IndexOf('}', openBrace);
                     if (closeBrace == -1) throw new Exception("Mismatched '{' in interpolated string.");
 
-                    // Extract the expression inside { }
                     string expressionText = fullValue.Substring(openBrace + 1, closeBrace - (openBrace + 1));
 
-                    // --- THE TRICK ---
-                    // Use a temporary Lexer and Parser to parse the expression inside the braces!
                     Lexer tempLexer = new Lexer(expressionText);
                     List<Token> tempTokens = tempLexer.Tokenize();
-                    // Remove the EOF token from tempTokens to not break the temp parser
                     tempTokens.RemoveAll(t => t.Type == TokenType.EndOfFile);
                     tempTokens.Add(new Token(TokenType.EndOfFile, "\0", 0, 0));
 
@@ -266,7 +259,7 @@ namespace Sage.Core
                 return interpolated;
             }
 
-            // Case: Identifier (Variable or Function Call)
+            // 4. Case: Identifier (Variable or Function Call)
             if (Current.Type == TokenType.Identifier)
             {
                 string name = Current.Value;
@@ -284,7 +277,6 @@ namespace Sage.Core
                 {
                     var args = new List<ExpressionNode>();
 
-                    // Parse arguments if not empty
                     if (Current.Type != TokenType.CloseParen)
                     {
                         do

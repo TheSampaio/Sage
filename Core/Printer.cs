@@ -71,6 +71,11 @@ namespace Sage.Core
                         Print(part, indent + "  | ");
                     break;
 
+                case ParenthesizedExpressionNode paren:
+                    Console.WriteLine($"{indent}Group ( )");
+                    Print(paren.Expression, indent + "  ");
+                    break;
+
                 default:
                     Console.WriteLine($"{indent}Unknown Node: {node.GetType().Name}");
                     break;

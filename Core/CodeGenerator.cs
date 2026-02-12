@@ -150,6 +150,13 @@ namespace Sage.Core
                     }
                     _code.Append(")");
                     break;
+
+                // Inside VisitExpression() switch
+                case ParenthesizedExpressionNode paren:
+                    _code.Append("(");
+                    VisitExpression(paren.Expression);
+                    _code.Append(")");
+                    break;
             }
         }
 

@@ -6,9 +6,12 @@ function Main() -> i32
 	Console::Print("Hello World! Welcome to the Sage programming language!");
 
 	// Example of declaring variables and operations
-	i32 number01 = 5;
-	i32 number02 = 5;
-	i32 result = number01 + number02;
+	i32 number01 = 8;
+	i32 number02 = 16;
+	i32 number03 = 32;
+	i32 number04 = 64;
+	i32 number05 = 128;
+	i32 result = ((number01 + number02) - number03) * number04 / number05;
 
 	// Example of printing the result to the console
 	Console::Print("The result of {number01} and {number02} is: {result}");
