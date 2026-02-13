@@ -2,24 +2,11 @@
 
 namespace Sage.Core
 {
-    public class Token
+    public class Token(TokenType type, string value, int line, int column)
     {
-        public TokenType Type { get; }
-        public string Value { get; }
-        public int Line { get; }
-        public int Column { get; }
-
-        public Token(TokenType type, string value, int line, int column)
-        {
-            Type = type;
-            Value = value;
-            Line = line;
-            Column = column;
-        }
-
-        public override string ToString()
-        {
-            return $"{{ Value: \"{Value}\" | Type: {Type} }}";
-        }
+        public TokenType Type { get; } = type;
+        public string Value { get; } = value;
+        public int Line { get; } = line;
+        public int Column { get; } = column;
     }
 }

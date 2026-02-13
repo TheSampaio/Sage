@@ -1,6 +1,35 @@
-use Console; // Nickname for stdio.h
+use console;
 
-func Main() -> none
+module math
 {
-    Console::PrintLine("Hello World!");
+    func sum(i32 a, i32 b): i32
+    {
+        return a + b;
+    }
+
+    func subtract(i32 a, i32 b): i32
+    {
+        return a - b;
+    }
+
+    func multiply(i32 a, i32 b): i32
+    {
+        return a * b;
+    }
+
+    func divide(i32 a, i32 b): i32
+    {
+        return a / b;
+    }
+}
+
+func main(): none
+{
+    i32 number01 = 40;
+    i32 number02 = 20;
+
+    console::print_line("{number01} + {number02} = {math::sum(number01, number02)}");
+    console::print_line("{number01} + {number02} = {math::subtract(number01, number02)}");
+    console::print_line("{number01} + {number02} = {math::multiply(number01, number02)}");
+    console::print_line("{number01} + {number02} = {math::divide(number01, number02)}");
 }

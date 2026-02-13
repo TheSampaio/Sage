@@ -2,48 +2,46 @@
 {
     public enum TokenType
     {
+        // Controle
         EndOfFile,
+        Unknown,
 
-        // Identifiers e Literals
-        Identifier,     // Ex: Console, number01, Main
-        Number,         // Ex: 5, 10, 3.14
+        // Literais e Identificadores
+        Identifier,     // Ex: main, console, result
+        Number,         // Ex: 10, 3.14
         String,         // Ex: "Hello World"
 
-        // Keywords
+        // Palavras-chave (Keywords)
         Keyword_Use,    // use
+        Keyword_Module, // module
         Keyword_Func,   // func
         Keyword_Return, // return
 
-        // Primitive Types
+        // Tipos Primitivos (Sage Types)
         Type_U8, Type_U16, Type_U32, Type_U64,
         Type_I8, Type_I16, Type_I32, Type_I64,
         Type_F32, Type_F64,
-        Type_B8,       // Boolean
-        Type_Char,     // c8
-        Type_Str,      // high-level string (std::string)
-        Type_Void,     // none
+        Type_B8,        // bool
+        Type_Char,      // c8
+        Type_Str,       // string
+        Type_Void,      // none
 
-        // Values
-        Value_Null,    // null
-
-        // Operators and Punctuation
+        // Operadores Matemáticos
         Plus,           // +
         Minus,          // -
         Asterisk,       // *
         Slash,          // /
         Equals,         // =
 
-        Arrow,          // ->
-        DoubleColon,    // ::
-
+        // Pontuação e Símbolos
         OpenParen,      // (
         CloseParen,     // )
         OpenBrace,      // {
         CloseBrace,     // }
         Semicolon,      // ;
         Comma,          // ,
-
-        // Others
-        Unknown
+        Colon,          // : (Usado na definição de tipo: func sum(): i32)
+        DoubleColon,    // :: (Usado em namespaces: console::print)
+        Arrow           // -> (Mantido para compatibilidade futura, caso mude a sintaxe)
     }
 }
