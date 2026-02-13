@@ -6,7 +6,7 @@ bin/
 obj/
 
 # Files
-*.cpp
-*.sgc
+*.ast
+*.c
 *.tok
 *.user

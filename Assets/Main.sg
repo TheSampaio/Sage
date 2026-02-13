@@ -1,31 +1,35 @@
-use Console;
+use console;
 
-function Main() -> i32
+module math
 {
-    // 1. Testing fixed-width integer types
-    str player_name = "Alice";
-    u8 player_health = 100;
-    i32 score = 2500;
-    u64 big_number = 1000000;
+    func sum(i32 a, i32 b): i32
+    {
+        return a + b;
+    }
 
-    // 2. Testing floating point and boolean
-    f32 speed = 12.5;
-    b8 is_active = 1;
+    func subtract(i32 a, i32 b): i32
+    {
+        return a - b;
+    }
 
-    // 3. Testing complex math with parentheses (Order of operations)
-    // Sage should preserve these parentheses in the C++ output
-    i32 calculation = ((score + 500) * 2) / (10 - 5);
+    func multiply(i32 a, i32 b): i32
+    {
+        return a * b;
+    }
 
-    // 4. Testing String Interpolation with multiple types
-    // This will test the new InterpolatedStringNode logic
-    Console::Print("Player Name: {player_name}");
-    Console::Print("Player Health: {player_health}");
-    Console::Print("Current Score: {score}");
-    Console::Print("Movement Speed: {speed}");
-    Console::Print("Calculation Result: {calculation}");
+    func divide(i32 a, i32 b): i32
+    {
+        return a / b;
+    }
+}
 
-    // 5. Testing a simple greeting
-    Console::Print("Status Check: System is active? {is_active}");
+func main(): none
+{
+    i32 number01 = 40;
+    i32 number02 = 20;
 
-    return 0;
+    console::print_line("{number01} + {number02} = {math::sum(number01, number02)}");
+    console::print_line("{number01} + {number02} = {math::subtract(number01, number02)}");
+    console::print_line("{number01} + {number02} = {math::multiply(number01, number02)}");
+    console::print_line("{number01} + {number02} = {math::divide(number01, number02)}");
 }
