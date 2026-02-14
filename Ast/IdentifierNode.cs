@@ -1,16 +1,25 @@
 ﻿using Sage.Interfaces;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Sage.Ast
 {
-    public class IdentifierNode : AstNode
+    /// <summary>
+    /// Represents a named reference to a variable, parameter, or function within the source code.
+    /// This node is used whenever an identifier is accessed in an expression.
+    /// </summary>
+    /// <param name="name">The name of the identifier as found in the source code.</param>
+    public class IdentifierNode(string name) : AstNode
     {
-        public string Name { get; }
-        public IdentifierNode(string n) => Name = n;
-        public override T Accept<T>(IAstVisitor<T> v) => v.Visit(this);
+        /// <summary>
+        /// Gets the name of the identifier.
+        /// </summary>
+        public string Name { get; } = name;
+
+        /// <summary>
+        /// Dispatches the visitor to the appropriate visit method for this identifier.
+        /// </summary>
+        /// <typeparam name="T">The return type of the visitor's operation.</typeparam>
+        /// <param name="visitor">An implementation of <see cref="IAstVisitor{T}"/>.</param>
+        /// <returns>The result of the visitor's operation on this node.</returns>
+        public override T Accept<T>(IAstVisitor<T> visitor) => visitor.Visit(this);
     }
 }
