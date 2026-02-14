@@ -32,6 +32,8 @@ namespace Sage.Core
             { "func", TokenType.Keyword_Func },
             { "return", TokenType.Keyword_Return },
             { "module", TokenType.Keyword_Module },
+            { "var", TokenType.Keyword_Var },     // Added support
+            { "const", TokenType.Keyword_Const }, // Added support
 
             { "i8", TokenType.Type_I8 },   { "u8", TokenType.Type_U8 },
             { "i16", TokenType.Type_I16 }, { "u16", TokenType.Type_U16 },
@@ -136,17 +138,21 @@ namespace Sage.Core
                 Advance();
             }
 
+            // check for floating point
             if (Current == '.' && char.IsDigit(Lookahead))
             {
-                Advance();
+                Advance(); // Consume '.'
                 while (_pos < _text.Length && char.IsDigit(Current))
                 {
                     Advance();
                 }
+
+                string floatValue = _text[start.._pos];
+                return new Token(TokenType.Float, floatValue, _line, startCol);
             }
 
-            string value = _text[start.._pos];
-            return new Token(TokenType.Number, value, _line, startCol);
+            string intValue = _text[start.._pos];
+            return new Token(TokenType.Integer, intValue, _line, startCol);
         }
 
         /// <summary>

@@ -103,8 +103,8 @@ namespace Sage.Core
                 return new ReturnNode(expr);
             }
 
-            // Variable Declaration check: name : type = value;
-            if (Current.Type == TokenType.Identifier && Peek.Type == TokenType.Colon)
+            // Variable Declaration check: var/const name: type = value;
+            if (Current.Type == TokenType.Keyword_Var || Current.Type == TokenType.Keyword_Const)
             {
                 return ParseVariableDeclaration();
             }
@@ -117,6 +117,11 @@ namespace Sage.Core
 
         private VariableDeclarationNode ParseVariableDeclaration()
         {
+            // Consume 'var' or 'const'. 
+            // TODO: In the future, pass this to the Node to enforce immutability semantics.
+            bool isConst = Match(TokenType.Keyword_Const);
+            if (!isConst) Consume(TokenType.Keyword_Var);
+
             string name = Consume(TokenType.Identifier).Value;
             Consume(TokenType.Colon);
             string type = ConsumeType();
@@ -211,8 +216,11 @@ namespace Sage.Core
         /// </summary>
         private AstNode ParsePrimary()
         {
-            if (Current.Type == TokenType.Number)
-                return new LiteralNode(Consume(TokenType.Number).Value, "i32");
+            if (Current.Type == TokenType.Integer)
+                return new LiteralNode(Consume(TokenType.Integer).Value, "i32");
+
+            if (Current.Type == TokenType.Float)
+                return new LiteralNode(Consume(TokenType.Float).Value, "f64");
 
             if (Current.Type == TokenType.String)
                 return new LiteralNode(Consume(TokenType.String).Value, "string");

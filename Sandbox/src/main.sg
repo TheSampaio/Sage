@@ -4,22 +4,22 @@ use console;
 // Define a module named 'math' that contains basic arithmetic functions
 module math
 {
-    func sum(a: i32, b: i32): i32
+    func sum(a: f64, b: f64): f64
     {
         return a + b;
     }
 
-    func subtract(a: i32, b: i32): i32
+    func subtract(a: f64, b: f64): f64
     {
         return a - b;
     }
 
-    func multiply(a: i32, b: i32): i32
+    func multiply(a: f64, b: f64): f64
     {
         return a * b;
     }
 
-    func divide(a: i32, b: i32): i32
+    func divide(a: f64, b: f64): f64
     {
         return a / b;
     }
@@ -28,12 +28,12 @@ module math
 func main(): none
 {
     // Define some variables to use in our operations
-    x: i32 = 40;
-    y: i32 = 20;
+    var distance: f64 = 50;
+    const pi: f64 = 3.1415;
 
     // Using functions from the 'math' module to perform operations and print results
-    console::print_line("Sum: {x} + {y} = {math::sum(x, y)}");
-    console::print_line("Subtraction: {x} - {y} = {math::subtract(x, y)}");
-    console::print_line("Multiplication: {x} * {y} = {math::multiply(x, y)}");
-    console::print_line("Division: {x} / {y} = {math::divide(x, y)}");
+    console::print_line("Sum: {distance} + {pi} = {math::sum(distance, pi)}");
+    console::print_line("Subtraction: {distance} - {pi} = {math::subtract(distance, pi)}");
+    console::print_line("Multiplication: {distance} * {pi} = {math::multiply(distance, pi)}");
+    console::print_line("Division: {distance} / {pi} = {math::divide(distance, pi)}");
 }

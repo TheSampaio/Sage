@@ -11,23 +11,44 @@
 
         // --- Identifiers & Literals ---
         Identifier,
-        Number,
+        Integer,
+        Float,
         String,
-        InterpolatedString, // Added for your InterpolatedStringNode logic
+        InterpolatedString,
 
         // --- Keywords ---
         Keyword_Use,
         Keyword_Module,
         Keyword_Func,
         Keyword_Return,
-        Keyword_Var, // Added for variable declarations
+        Keyword_Var,
+        Keyword_Const,
 
-        // --- Data Types ---
-        Type_I8, Type_I16, Type_I32, Type_I64,
-        Type_U8, Type_U16, Type_U32, Type_U64,
-        Type_F32, Type_F64,
+        // --- Signed Integers ---
+        Type_I8,
+        Type_I16,
+        Type_I32,
+        Type_I64,
+
+        // --- Unsigned Integers ---
+        Type_U8,
+        Type_U16,
+        Type_U32,
+        Type_U64,
+
+        // --- Floating-Point Types ---
+        Type_F32,
+        Type_F64,
+
+        // --- Boolean Type ---
         Type_B8,
-        Type_C8, Type_C16, Type_C32,
+
+        // --- Character Types ---
+        Type_C8,
+        Type_C16,
+        Type_C32,
+
+        // --- String & Void Type ---
         Type_Str,
         Type_Void,
 
