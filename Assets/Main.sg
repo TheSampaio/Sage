@@ -1,23 +1,25 @@
+// Using external modules
 use console;
 
+// Define a module named 'math' that contains basic arithmetic functions (Namespace)
 module math
 {
-    func sum(i32 a, i32 b): i32
+    func sum(a: i32, b: i32): i32
     {
         return a + b;
     }
 
-    func subtract(i32 a, i32 b): i32
+    func subtract(a: i32, b: i32): i32
     {
         return a - b;
     }
 
-    func multiply(i32 a, i32 b): i32
+    func multiply(a: i32, b: i32): i32
     {
         return a * b;
     }
 
-    func divide(i32 a, i32 b): i32
+    func divide(a: i32, b: i32): i32
     {
         return a / b;
     }
@@ -25,8 +27,9 @@ module math
 
 func main(): none
 {
-    i32 number01 = 40;
-    i32 number02 = 20;
+    // Variable declarations
+    number01: i32 = 40;
+    number02: i32 = 20;
 
     console::print_line("{number01} + {number02} = {math::sum(number01, number02)}");
     console::print_line("{number01} + {number02} = {math::subtract(number01, number02)}");

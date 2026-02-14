@@ -2,8 +2,19 @@
 
 namespace Sage.Ast
 {
+    /// <summary>
+    /// Represents the base class for all nodes in the Sage Abstract Syntax Tree (AST).
+    /// Implements the element side of the Visitor pattern to allow for decoupled operations
+    /// such as code generation, semantic analysis, and tree printing.
+    /// </summary>
     public abstract class AstNode
     {
+        /// <summary>
+        /// Dispatches the node to the appropriate visit method on the provided visitor.
+        /// </summary>
+        /// <typeparam name="T">The return type of the visitor's operation.</typeparam>
+        /// <param name="visitor">An implementation of <see cref="IAstVisitor{T}"/>.</param>
+        /// <returns>The result of the visitor's operation on this node.</returns>
         public abstract T Accept<T>(IAstVisitor<T> visitor);
     }
 }

@@ -1,17 +1,31 @@
 ﻿using Sage.Interfaces;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Sage.Ast
 {
-    public class LiteralNode : AstNode
+    /// <summary>
+    /// Represents a constant value of a specific type within the source code, 
+    /// such as an integer, a floating-point number, or a string.
+    /// </summary>
+    /// <param name="value">The actual data value stored in the node.</param>
+    /// <param name="typeName">The Sage type associated with this literal (e.g., "i32", "f32", "string").</param>
+    public class LiteralNode(object value, string typeName) : AstNode
     {
-        public object Value { get; }
-        public string TypeName { get; }
-        public LiteralNode(object v, string t) { Value = v; TypeName = t; }
-        public override T Accept<T>(IAstVisitor<T> v) => v.Visit(this);
+        /// <summary>
+        /// Gets the constant value of this node.
+        /// </summary>
+        public object Value { get; } = value;
+
+        /// <summary>
+        /// Gets the Sage data type name for this literal.
+        /// </summary>
+        public string TypeName { get; } = typeName;
+
+        /// <summary>
+        /// Dispatches the visitor to the appropriate visit method for this literal.
+        /// </summary>
+        /// <typeparam name="T">The return type of the visitor's operation.</typeparam>
+        /// <param name="visitor">An implementation of <see cref="IAstVisitor{T}"/>.</param>
+        /// <returns>The result of the visitor's operation on this node.</returns>
+        public override T Accept<T>(IAstVisitor<T> visitor) => visitor.Visit(this);
     }
 }

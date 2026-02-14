@@ -1,16 +1,25 @@
 ﻿using Sage.Interfaces;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Sage.Ast
 {
-    public class ExpressionStatementNode : AstNode
+    /// <summary>
+    /// Represents a statement that consists of a single expression followed by a terminator.
+    /// This node wraps expressions (like function calls or assignments) to be used in statement contexts.
+    /// </summary>
+    /// <param name="expression">The underlying expression contained within the statement.</param>
+    public class ExpressionStatementNode(AstNode expression) : AstNode
     {
-        public AstNode Expression { get; }
-        public ExpressionStatementNode(AstNode e) => Expression = e;
-        public override T Accept<T>(IAstVisitor<T> v) => v.Visit(this);
+        /// <summary>
+        /// Gets the expression that constitutes this statement.
+        /// </summary>
+        public AstNode Expression { get; } = expression;
+
+        /// <summary>
+        /// Dispatches the visitor to the appropriate visit method for this statement.
+        /// </summary>
+        /// <typeparam name="T">The return type of the visitor's operation.</typeparam>
+        /// <param name="visitor">An implementation of <see cref="IAstVisitor{T}"/>.</param>
+        /// <returns>The result of the visitor's operation on this node.</returns>
+        public override T Accept<T>(IAstVisitor<T> visitor) => visitor.Visit(this);
     }
 }
