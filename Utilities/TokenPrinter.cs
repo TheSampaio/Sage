@@ -1,29 +1,30 @@
-﻿using Sage.Core;
-using System.Text;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
+using Sage.Core;
 
 namespace Sage.Utilities
 {
     /// <summary>
-    /// Utility for converting a list of tokens into a human-readable string format.
+    /// Utility for converting a list of tokens into a standardized JSON format.
+    /// This is useful for external tooling, debugging, and IDE integration.
     /// </summary>
     public static class TokenPrinter
     {
         /// <summary>
-        /// Formats a list of tokens into a readable string.
+        /// Serializes a collection of tokens into an indented JSON string.
         /// </summary>
+        /// <param name="tokens">The stream of tokens produced by the Lexer.</param>
+        /// <returns>A formatted JSON string representing the token data.</returns>
         public static string Print(IEnumerable<Token> tokens)
         {
-            var sb = new StringBuilder();
-            sb.AppendLine($"{"Type",-20} | {"Lexeme",-15} | {"Value",-15}");
-            sb.AppendLine(new string('-', 55));
-
-            foreach (var token in tokens)
+            var options = new JsonSerializerOptions
             {
-                // Formats each token as a row in a table
-                sb.AppendLine($"{token.Type,-20} | {token.Value,-15} | {token.Value ?? "null",-15}");
-            }
+                WriteIndented = true,
+                // Ensures Enums (TokenType) are printed as strings for readability
+                Converters = { new JsonStringEnumConverter() }
+            };
 
-            return sb.ToString();
+            return JsonSerializer.Serialize(tokens, options);
         }
     }
 }

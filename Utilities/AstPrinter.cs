@@ -1,117 +1,129 @@
-﻿using Sage.Ast;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
+using Sage.Ast;
 using Sage.Interfaces;
-using System.Text;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Sage.Utilities
 {
     /// <summary>
     /// Utility class that traverses the Abstract Syntax Tree (AST) to generate a 
-    /// human-readable text representation. Useful for debugging and compiler diagnostics.
+    /// standardized JSON representation. Highly efficient for external tool integration.
     /// </summary>
-    public class AstPrinter : IAstVisitor<string>
+    public class AstPrinter : IAstVisitor<object>
     {
-        private int _indent = 0;
-
         /// <summary>
-        /// Generates a string representing the indentation based on the current depth.
+        /// Entry point to serialize the entire program into an indented JSON string.
         /// </summary>
-        private string IndentStr => new(' ', _indent * 2);
-
-        /// <summary>
-        /// Main entry point to print the entire program structure.
-        /// </summary>
-        /// <param name="node">The root ProgramNode.</param>
-        /// <returns>A formatted string representing the AST.</returns>
-        public string Print(ProgramNode node) => node.Accept(this);
-
-        public string Visit(ProgramNode node)
+        /// <param name="node">The root ProgramNode of the AST.</param>
+        /// <returns>A formatted JSON string representing the full AST hierarchy.</returns>
+        public string Print(ProgramNode node)
         {
-            var sb = new StringBuilder();
-            sb.AppendLine("Program");
-            foreach (var stmt in node.Statements)
+            var options = new JsonSerializerOptions
             {
-                sb.Append(stmt.Accept(this));
-            }
-            return sb.ToString();
+                WriteIndented = true,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                // Ensures TokenType enums are readable strings
+                Converters = { new JsonStringEnumConverter() }
+            };
+
+            return JsonSerializer.Serialize(node.Accept(this), options);
         }
 
-        public string Visit(ModuleNode node)
+        public object Visit(ProgramNode node) => new
         {
-            var sb = new StringBuilder();
-            sb.AppendLine($"{IndentStr}Module '{node.Name}' {{");
+            Type = "Program",
+            Body = node.Statements.Select(s => s.Accept(this))
+        };
 
-            _indent++;
-            foreach (var func in node.Functions)
-            {
-                sb.Append(func.Accept(this));
-            }
-            _indent--;
-
-            sb.AppendLine($"{IndentStr}}}");
-            return sb.ToString();
-        }
-
-        public string Visit(FunctionDeclarationNode node)
+        public object Visit(ModuleNode node) => new
         {
-            var sb = new StringBuilder();
-            string paramsStr = string.Join(", ", node.Parameters.Select(p => $"{p.Name}: {p.Type}"));
+            Type = "Module",
+            Name = node.Name,
+            Functions = node.Functions.Select(f => f.Accept(this))
+        };
 
-            sb.AppendLine($"{IndentStr}Func {node.Name}({paramsStr}) -> {node.ReturnType}");
-            sb.Append(node.Body.Accept(this));
-
-            return sb.ToString();
-        }
-
-        public string Visit(BlockNode node)
+        public object Visit(FunctionDeclarationNode node) => new
         {
-            var sb = new StringBuilder();
-            sb.AppendLine($"{IndentStr}{{");
+            Type = "FunctionDeclaration",
+            Name = node.Name,
+            ReturnType = node.ReturnType,
+            Parameters = node.Parameters.Select(p => new { p.Name, p.Type }),
+            Body = node.Body.Accept(this)
+        };
 
-            _indent++;
-            foreach (var stmt in node.Statements)
-            {
-                sb.Append(stmt.Accept(this));
-            }
-            _indent--;
-
-            sb.AppendLine($"{IndentStr}}}");
-            return sb.ToString();
-        }
-
-        public string Visit(VariableDeclarationNode node) =>
-            $"{IndentStr}Var {node.Name}: {node.Type} = {node.Initializer.Accept(this)}\n";
-
-        public string Visit(ReturnNode node) =>
-            $"{IndentStr}Return {node.Expression.Accept(this)}\n";
-
-        public string Visit(ExpressionStatementNode node) =>
-            $"{IndentStr}Expr: {node.Expression.Accept(this)}\n";
-
-        public string Visit(UseNode node) =>
-            $"{IndentStr}Use {node.Module}\n";
-
-        public string Visit(BinaryExpressionNode node) =>
-            $"({node.Left.Accept(this)} {node.Operator} {node.Right.Accept(this)})";
-
-        // --- NEW IMPLEMENTATION for Cast Support ---
-        public string Visit(CastExpressionNode node) =>
-            $"(Cast {node.TargetType} {node.Expression.Accept(this)})";
-        // ------------------------------------------
-
-        public string Visit(LiteralNode node) => node.Value?.ToString() ?? "null";
-
-        public string Visit(IdentifierNode node) => node.Name;
-
-        public string Visit(FunctionCallNode node)
+        public object Visit(BlockNode node) => new
         {
-            var args = string.Join(", ", node.Arguments.Select(a => a.Accept(this)));
-            return $"Call {node.Name}({args})";
-        }
+            Type = "Block",
+            Statements = node.Statements.Select(s => s.Accept(this))
+        };
 
-        public string Visit(InterpolatedStringNode node)
+        public object Visit(VariableDeclarationNode node) => new
         {
-            var parts = string.Join(" + ", node.Parts.Select(p => p.Accept(this)));
-            return $"$\"{parts}\"";
-        }
+            Type = "VariableDeclaration",
+            Name = node.Name,
+            DataType = node.Type,
+            Initializer = node.Initializer.Accept(this)
+        };
+
+        public object Visit(ReturnNode node) => new
+        {
+            Type = "Return",
+            Expression = node.Expression.Accept(this)
+        };
+
+        public object Visit(ExpressionStatementNode node) => new
+        {
+            Type = "ExpressionStatement",
+            Expression = node.Expression.Accept(this)
+        };
+
+        public object Visit(UseNode node) => new
+        {
+            Type = "Use",
+            Module = node.Module
+        };
+
+        public object Visit(BinaryExpressionNode node) => new
+        {
+            Type = "BinaryExpression",
+            Operator = node.Operator,
+            Left = node.Left.Accept(this),
+            Right = node.Right.Accept(this)
+        };
+
+        public object Visit(CastExpressionNode node) => new
+        {
+            Type = "Cast",
+            TargetType = node.TargetType,
+            Value = node.Expression.Accept(this)
+        };
+
+        public object Visit(LiteralNode node) => new
+        {
+            Type = "Literal",
+            Value = node.Value,
+            DataType = node.TypeName
+        };
+
+        public object Visit(IdentifierNode node) => new
+        {
+            Type = "Identifier",
+            Name = node.Name
+        };
+
+        public object Visit(FunctionCallNode node) => new
+        {
+            Type = "FunctionCall",
+            Name = node.Name,
+            Arguments = node.Arguments.Select(a => a.Accept(this))
+        };
+
+        public object Visit(InterpolatedStringNode node) => new
+        {
+            Type = "InterpolatedString",
+            Parts = node.Parts.Select(p => p.Accept(this))
+        };
     }
 }
