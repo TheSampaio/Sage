@@ -3,102 +3,160 @@
 ## Overview
 
 **Sage** is a statically typed, compiled programming language designed for high-performance applications and small-scale 2D games.
-Currently, the compiler is implemented in **C# (.NET 8)** and acts as a **transpiler**, converting Sage source code (`.sg`) into optimized, standard **C99/C11** code.
+The compiler is implemented in **C# (.NET 8)** and operates as a full toolchain: it **transpiles** Sage source code (`.sg`) into optimized **C11** code, and then orchestrates a native C compiler (GCC) to produce a standalone **Windows Executable (`.exe`)**.
 
-The project has been recently refactored to strictly follow **SOLID principles** and **Clean Code** architecture, utilizing design patterns such as the **Visitor Pattern** for AST traversal and code generation.
+The project strictly follows **SOLID principles** and **Clean Code** architecture, utilizing design patterns such as the **Visitor Pattern** for AST traversal and code generation, ensuring the codebase remains modular and testable.
 
 ## Core Features
 
-- **Clean Architecture:** Compiler built with modularity and extensibility in mind (Lexer, Parser, Visitors).
-- **C-style Syntax:** Familiar syntax with modern touches like explicit modules.
-- **Strong Typing:** Support for explicit types (`i32`, `string`, `none`, etc.).
-- **Modularity:** Code organization via `module` blocks and namespaced calls (`math::sum`).
-- **C Transpilation:** Generates raw C code (`.c`) for maximum portability and performance.
-- **Developer Tooling:** Built-in debug outputs for Tokens (`.tok`) and Abstract Syntax Trees (`.ast`).
+* **Battery Included:** Handles the entire build process from source to binary (`.exe`).
+* **Standard Project Layout:** Enforces a clean `src`, `obj`, and `bin` directory structure.
+* **C-style Syntax:** Familiar syntax with modern touches like explicit modules and arrow return types (`->`).
+* **Strong Typing:** Support for explicit types (`i32`, `string`, `void`, etc.).
+* **Modularity:** Code organization via `module` blocks and namespaced calls (`math::sum`).
+* **Native Performance:** Leverages GCC optimization (`-O2`) for maximum runtime speed.
+* **Developer Tooling:** Built-in debug outputs for Tokens (`.tok`) and Abstract Syntax Trees (`.ast`).
+
+## Dependencies
+
+Sage relies on an external C toolchain to finalize the build process.
+
+* **GCC (GNU Compiler Collection):** **Required**
+* **Why?** Sage operates as a transpiler. It converts `.sg` source code into optimized intermediate C code (`.c`) and automatically invokes `gcc` to compile and link the final executable (`.exe`).
+* **Installation:** Ensure you have **MinGW-w64** (or a similar GCC distribution) installed and added to your system's `PATH`.
+* **Verification:** Run `gcc --version` in your terminal to ensure the compiler is accessible.
 
 ## Compiler Pipeline
 
-The Sage compiler follows a robust pipeline to ensure code reliability:
+The Sage compiler follows a multi-stage pipeline to ensure reliability and performance:
 
-1.  **Lexer:** Converts source code into a stream of strictly typed `Tokens`.
-2.  **Parser:** Analyzes the token stream and builds a hierarchical **Abstract Syntax Tree (AST)**.
-3.  **Visitors:**
-    * **AST Printer:** (Debug only) Visualizes the code structure.
-    * **Code Generator:** Traverses the AST to emit optimized C code.
+1. **Lexer:** Converts source code into a stream of strictly typed `Tokens`.
+2. **Parser:** Analyzes the token stream and builds a hierarchical **Abstract Syntax Tree (AST)**.
+3. **Semantic Analyzer:** Validates types, scopes, and variable existence.
+4. **Code Generator:** Traverses the AST to emit optimized C11 code (`.c`).
+5. **Native Toolchain:** Invokes the system GCC to compile intermediate C code into a final binary.
 
 ## Project Structure & Usage
 
+Sage enforces a standard directory layout to keep projects clean.
+
+```text
+MyProject/
+   |-- bin/
+   |     |-- main.exe     (Final Application)
+   |-- obj/
+   |     |-- main.sg.c    (Transpiled code)
+   |     |-- main.sg.tok  (Debug tokens)
+   |     |-- main.sg.ast  (Debug tree)
+   |-- src/
+   |     |-- main.sg      (Source code)
+```
+
 The compiler operates in two modes:
 
-### 1. Debug Mode (Development)
-Intended for compiler development.
-- **Input:** Automatically looks for `Assets/main.sg` in the project root.
-- **Outputs (in `Assets/`):**
-    - `main.sg.c`: The transpiled C code.
-    - `main.sg.tok`: A JSON dump of all lexed tokens.
-    - `main.sg.ast`: A visual text representation of the AST hierarchy.
+### 1. Sandbox Mode (Internal Development)
+
+Intended for compiler development and "dogfooding".
+
+* **Workflow:** Simply press `F5` (Debug) in Visual Studio.
+* **Behavior:** The compiler automatically detects the internal `Sage/Sandbox/src` folder, compiles the code, and **immediately executes** the resulting binary for rapid feedback.
 
 ### 2. Release Mode (CLI)
+
 Intended for end-users.
-- **Usage:** `Sage.exe <path_to_file.sg>`
-- **Output:** Generates only the `.c` file in the same directory.
+
+* **Usage:** `sage <path_to_file.sg>`
+* **Behavior:**
+1. Detects if the file is inside a `src` folder.
+2. Automatically creates `../bin` and `../obj` directories relative to the project root.
+3. Compiles the executable to `bin/`.
 
 ## Syntax Example
 
 Below is an example of the current syntax features, including modules, typed functions, and string interpolation:
 
-``` Sage
-// main.sg
+```rust
+// src/main.sg
+// Import the standard console module for text output
 use console;
 
+// Math module
+// Groups related arithmetic functions under a single namespace,
+// avoiding global symbol pollution and improving code organization.
 module math
 {
-    func sum(i32 a, i32 b): i32
+    // Returns the sum of two 32-bit integers
+    func sum(a: i32, b: i32): i32
     {
         return a + b;
     }
 
-    func subtract(i32 a, i32 b): i32
+    // Returns the subtraction result of two 32-bit integers
+    func subtract(a: i32, b: i32): i32
     {
         return a - b;
     }
 
-    func multiply(i32 a, i32 b): i32
+    // Returns the multiplication result of two 32-bit integers
+    func multiply(a: i32, b: i32): i32
     {
         return a * b;
     }
 
-    func divide(i32 a, i32 b): i32
+    // Returns the integer division result of two 32-bit integers
+    func divide(a: i32, b: i32): i32
     {
         return a / b;
     }
 }
 
+// Program entry point
+// Execution starts here.
 func main(): none
 {
-    i32 number01 = 40;
-    i32 number02 = 20;
+    // Local variables with explicit static types
+    x: i32 = 40;
+    y: i32 = 20;
 
-    // Namespaced calls and string interpolation
-    console::print_line("{number01} + {number02} = {math::sum(number01, number02)}");
-    console::print_line("{number01} - {number02} = {math::subtract(number01, number02)}");
-    console::print_line("{number01} * {number02} = {math::multiply(number01, number02)}");
-    console::print_line("{number01} / {number02} = {math::divide(number01, number02)}");
+    // Console output using namespaced function calls
+    // String interpolation is resolved at compile time.
+    console::print_line("Sum: {x} + {y} = {math::sum(x, y)}");
+    console::print_line("Subtraction: {x} - {y} = {math::subtract(x, y)}");
+    console::print_line("Multiplication: {x} * {y} = {math::multiply(x, y)}");
+    console::print_line("Division: {x} / {y} = {math::divide(x, y)}");
 }
 ```
+
 ## Generated C Output
 
-The above Sage code transpiles to the following C code:
+The above Sage code transpiles to the following C code (intermediate artifact in `obj/`):
 
-``` C
+```c
+/* --- Generated by Sage Compiler --- */
 #include <stdio.h>
 #include <stdint.h>
-// Sage Standard Types
-typedef int32_t i32;
-typedef void none;
-typedef char* string;
+#include <stdbool.h>
+#include <uchar.h>
 
-// --- Generated Code ---
+/* --- Sage Type Definitions --- */
+typedef int8_t i8;
+typedef int16_t i16;
+typedef int32_t i32;
+typedef int64_t i64;
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+typedef float f32;
+typedef double f64;
+typedef bool b8;
+typedef char c8;
+typedef char16_t c16;
+typedef char32_t c32;
+typedef char* str;
+typedef void none;
+
+/* --- Generated Logic --- */
 // use console;
 // Module: math
 i32 math_sum(i32 a, i32 b)
@@ -117,30 +175,30 @@ i32 math_divide(i32 a, i32 b)
 {
     return (a / b);
 }
-void main()
+none main()
 {
-    i32 number01 = 40;
-    i32 number02 = 20;
-    printf("%d + %d = %d\n", number01, number02, math_sum(number01, number02));
-    printf("%d + %d = %d\n", number01, number02, math_subtract(number01, number02));
-    printf("%d + %d = %d\n", number01, number02, math_multiply(number01, number02));
-    printf("%d + %d = %d\n", number01, number02, math_divide(number01, number02));
+    i32 x = 40;
+    i32 y = 20;
+    printf("Sum: %d + %d = %d\n", x, y, math_sum(x, y));
+    printf("Subtraction: %d - %d = %d\n", x, y, math_subtract(x, y));
+    printf("Multiplication: %d * %d = %d\n", x, y, math_multiply(x, y));
+    printf("Division: %d / %d = %d\n", x, y, math_divide(x, y));
 }
 ```
 
 ## Project Status
 
-The project is in **Alpha**.  
+The project is in **Alpha**.
+
 The architecture is stable, supporting:
 
-- [x] Variable Declarations & Assignments
-- [x] Function Declarations with Parameters & Return Types
-- [x] Modules & Namespaces (`::`)
-- [x] Basic Arithmetic Expressions
-- [x] String Interpolation (compiled to `printf`)
-- [x] Debug Visualization (Tokens/AST)
-
----
+* [x] Variable Declarations (`var`) & Assignments
+* [x] Function Declarations with Arrow Syntax (`->`)
+* [x] Modules & Namespaces (`::`)
+* [x] Basic Arithmetic Expressions
+* [x] String Interpolation (compiled to `printf`)
+* [x] **Native Compilation (GCC Integration)**
+* [x] **Sandbox Environment**
 
 ## License
 

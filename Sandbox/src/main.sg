@@ -1,7 +1,7 @@
-// Using external modules
+// This is a simple program that demonstrates the use of modules (namespaces) in Scripting Language.
 use console;
 
-// Define a module named 'math' that contains basic arithmetic functions (Namespace)
+// Define a module named 'math' that contains basic arithmetic functions
 module math
 {
     func sum(a: i32, b: i32): i32
@@ -27,12 +27,13 @@ module math
 
 func main(): none
 {
-    // Variable declarations
-    number01: i32 = 40;
-    number02: i32 = 20;
+    // Define some variables to use in our operations
+    x: i32 = 40;
+    y: i32 = 20;
 
-    console::print_line("{number01} + {number02} = {math::sum(number01, number02)}");
-    console::print_line("{number01} + {number02} = {math::subtract(number01, number02)}");
-    console::print_line("{number01} + {number02} = {math::multiply(number01, number02)}");
-    console::print_line("{number01} + {number02} = {math::divide(number01, number02)}");
+    // Using functions from the 'math' module to perform operations and print results
+    console::print_line("Sum: {x} + {y} = {math::sum(x, y)}");
+    console::print_line("Subtraction: {x} - {y} = {math::subtract(x, y)}");
+    console::print_line("Multiplication: {x} * {y} = {math::multiply(x, y)}");
+    console::print_line("Division: {x} / {y} = {math::divide(x, y)}");
 }
