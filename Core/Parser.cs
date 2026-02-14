@@ -103,8 +103,8 @@ namespace Sage.Core
                 return new ReturnNode(expr);
             }
 
-            // Variable Declaration check: name : type = value;
-            if (Current.Type == TokenType.Identifier && Peek.Type == TokenType.Colon)
+            // Variable Declaration check: var/const name: type = value;
+            if (Current.Type == TokenType.Keyword_Var || Current.Type == TokenType.Keyword_Const)
             {
                 return ParseVariableDeclaration();
             }
@@ -117,6 +117,11 @@ namespace Sage.Core
 
         private VariableDeclarationNode ParseVariableDeclaration()
         {
+            // Consume 'var' or 'const'. 
+            // TODO: In the future, pass this to the Node to enforce immutability semantics.
+            bool isConst = Match(TokenType.Keyword_Const);
+            if (!isConst) Consume(TokenType.Keyword_Var);
+
             string name = Consume(TokenType.Identifier).Value;
             Consume(TokenType.Colon);
             string type = ConsumeType();
@@ -196,12 +201,12 @@ namespace Sage.Core
 
         private AstNode ParseMultiplicative()
         {
-            var left = ParsePrimary();
+            var left = ParseCastExpression();
             while (Current.Type == TokenType.Asterisk || Current.Type == TokenType.Slash)
             {
                 var op = Current.Type;
                 _pos++;
-                left = new BinaryExpressionNode(left, op, ParsePrimary());
+                left = new BinaryExpressionNode(left, op, ParseCastExpression()); // Changed here too
             }
             return left;
         }
@@ -211,8 +216,11 @@ namespace Sage.Core
         /// </summary>
         private AstNode ParsePrimary()
         {
-            if (Current.Type == TokenType.Number)
-                return new LiteralNode(Consume(TokenType.Number).Value, "i32");
+            if (Current.Type == TokenType.Integer)
+                return new LiteralNode(Consume(TokenType.Integer).Value, "i32");
+
+            if (Current.Type == TokenType.Float)
+                return new LiteralNode(Consume(TokenType.Float).Value, "f64");
 
             if (Current.Type == TokenType.String)
                 return new LiteralNode(Consume(TokenType.String).Value, "string");
@@ -247,6 +255,23 @@ namespace Sage.Core
             }
 
             throw new Exception($"Unexpected token in expression: {Current.Type} ('{Current.Value}')");
+        }
+
+        /// <summary>
+        /// Parses explicit type casts using the 'as' keyword (e.g., expr as type).
+        /// Since 'as' is left-associative, we loop to handle chaining (x as f64 as i32).
+        /// </summary>
+        private AstNode ParseCastExpression()
+        {
+            var expression = ParsePrimary();
+
+            while (Match(TokenType.Keyword_As))
+            {
+                string targetType = ConsumeType();
+                expression = new CastExpressionNode(expression, targetType);
+            }
+
+            return expression;
         }
     }
 }

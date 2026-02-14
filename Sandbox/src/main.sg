@@ -1,39 +1,17 @@
-// This is a simple program that demonstrates the use of modules (namespaces) in Scripting Language.
 use console;
-
-// Define a module named 'math' that contains basic arithmetic functions
-module math
-{
-    func sum(a: i32, b: i32): i32
-    {
-        return a + b;
-    }
-
-    func subtract(a: i32, b: i32): i32
-    {
-        return a - b;
-    }
-
-    func multiply(a: i32, b: i32): i32
-    {
-        return a * b;
-    }
-
-    func divide(a: i32, b: i32): i32
-    {
-        return a / b;
-    }
-}
 
 func main(): none
 {
-    // Define some variables to use in our operations
-    x: i32 = 40;
-    y: i32 = 20;
+    var a: i32 = 10;
+    var b: f64 = 2.5;
+    
+    // Sem o cast, isso daria erro de tipo.
+    // Com o cast, convertemos o resultado da soma (f64) para i32 (truncando o 0.5)
+    var result: i32 = (a + b) as i32; 
 
-    // Using functions from the 'math' module to perform operations and print results
-    console::print_line("Sum: {x} + {y} = {math::sum(x, y)}");
-    console::print_line("Subtraction: {x} - {y} = {math::subtract(x, y)}");
-    console::print_line("Multiplication: {x} * {y} = {math::multiply(x, y)}");
-    console::print_line("Division: {x} / {y} = {math::divide(x, y)}");
+    console::print_line("Result truncated: {result}");
+
+    // Teste direto de f64 para i32
+    var pi_int: i32 = 3.1415 as i32;
+    console::print_line("Pi as Int: {pi_int}");
 }

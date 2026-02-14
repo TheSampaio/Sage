@@ -158,6 +158,8 @@ namespace Sage.Core
 
             if (node.TypeName == "f32") return $"{node.Value}f";
 
+            if (node.TypeName == "f64") return $"{node.Value}";
+
             return node.Value.ToString();
         }
 
@@ -182,39 +184,53 @@ namespace Sage.Core
                     string template = lit.Value.ToString();
                     var vars = new List<string>();
                     var cleanTemplate = new StringBuilder();
-                    bool inside = false;
-                    var currentVar = new StringBuilder();
 
-                    foreach (char c in template)
+                    for (int i = 0; i < template.Length; i++)
                     {
-                        if (c == '{') { inside = true; cleanTemplate.Append("%d"); continue; }
-                        if (c == '}')
+                        if (template[i] == '{')
                         {
-                            inside = false;
-                            string rawVar = currentVar.ToString();
-                            vars.Add(rawVar.Replace("::", "_"));
-                            currentVar.Clear();
-                            continue;
+                            // Use %g for general numbers (works for i32 and f32)
+                            // Use %s for strings. For now, we'll guess based on context or use %g.
+                            cleanTemplate.Append("%g");
+
+                            int start = ++i;
+                            while (i < template.Length && template[i] != '}') i++;
+
+                            string expression = template[start..i];
+                            vars.Add(expression.Replace("::", "_"));
                         }
-                        if (inside) currentVar.Append(c);
-                        else cleanTemplate.Append(c);
+                        else
+                        {
+                            cleanTemplate.Append(template[i]);
+                        }
                     }
 
                     cleanTemplate.Append("\\n");
                     sb.Append($"\"{cleanTemplate}\"");
 
-                    if (vars.Count > 0) sb.Append(", ");
-                    sb.Append(string.Join(", ", vars));
+                    if (vars.Count > 0)
+                    {
+                        sb.Append(", ");
+                        // Cast to double to ensure %g works reliably with printf's variadic arguments
+                        var castedVars = vars.Select(v => $"(double)({v})");
+                        sb.Append(string.Join(", ", castedVars));
+                    }
                 }
                 sb.Append(')');
                 return sb.ToString();
             }
 
+            // Standard function call logic
             string cName = node.Name.Replace("::", "_");
             var args = node.Arguments.Select(a => a.Accept(this));
             return $"{cName}({string.Join(", ", args)})";
         }
 
         public string Visit(InterpolatedStringNode node) => "\"Not Implemented\"";
+
+        public string Visit(CastExpressionNode node)
+        {
+            return $"({node.TargetType}){node.Expression.Accept(this)}";
+        }
     }
 }
