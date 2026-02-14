@@ -23,6 +23,7 @@
         Keyword_Return,
         Keyword_Var,
         Keyword_Const,
+        Keyword_As,
 
         // --- Signed Integers ---
         Type_I8,

@@ -1,6 +1,5 @@
 ﻿using Sage.Ast;
 using Sage.Interfaces;
-using System.Linq;
 using System.Text;
 
 namespace Sage.Utilities
@@ -93,6 +92,11 @@ namespace Sage.Utilities
 
         public string Visit(BinaryExpressionNode node) =>
             $"({node.Left.Accept(this)} {node.Operator} {node.Right.Accept(this)})";
+
+        // --- NEW IMPLEMENTATION for Cast Support ---
+        public string Visit(CastExpressionNode node) =>
+            $"(Cast {node.TargetType} {node.Expression.Accept(this)})";
+        // ------------------------------------------
 
         public string Visit(LiteralNode node) => node.Value?.ToString() ?? "null";
 

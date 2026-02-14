@@ -227,5 +227,10 @@ namespace Sage.Core
         }
 
         public string Visit(InterpolatedStringNode node) => "\"Not Implemented\"";
+
+        public string Visit(CastExpressionNode node)
+        {
+            return $"({node.TargetType}){node.Expression.Accept(this)}";
+        }
     }
 }

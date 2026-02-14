@@ -11,6 +11,7 @@ namespace Sage.Core
     public class SemanticAnalyzer : IAstVisitor<string>
     {
         private readonly SymbolTable _symbolTable = new();
+        private bool IsNumeric(string type) => type is "i32" or "f64" or "i8" or "u8" or "f32" or "i64";
 
         /// <summary>
         /// Orchestrates the semantic analysis of the entire program.
@@ -172,6 +173,28 @@ namespace Sage.Core
         /// <param name="node">The interpolated string node.</param>
         /// <returns>The string type "str".</returns>
         public string Visit(InterpolatedStringNode node) => "str";
+
+        /// <summary>
+        /// Validates explicit type casts.
+        /// Allows numeric conversions but prevents invalid casts (e.g., string to int).
+        /// </summary>
+        public string Visit(CastExpressionNode node)
+        {
+            string sourceType = node.Expression.Accept(this);
+            string targetType = node.TargetType;
+
+            if (sourceType == targetType) return targetType;
+
+            bool isSourceNumeric = IsNumeric(sourceType);
+            bool isTargetNumeric = IsNumeric(targetType);
+
+            if (isSourceNumeric && isTargetNumeric)
+            {
+                return targetType;
+            }
+
+            throw new Exception($"[TYPE ERROR] Cannot cast from '{sourceType}' to '{targetType}'. Explicit conversion not supported.");
+        }
 
         #region Helper Methods
 

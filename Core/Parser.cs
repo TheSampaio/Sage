@@ -201,12 +201,12 @@ namespace Sage.Core
 
         private AstNode ParseMultiplicative()
         {
-            var left = ParsePrimary();
+            var left = ParseCastExpression();
             while (Current.Type == TokenType.Asterisk || Current.Type == TokenType.Slash)
             {
                 var op = Current.Type;
                 _pos++;
-                left = new BinaryExpressionNode(left, op, ParsePrimary());
+                left = new BinaryExpressionNode(left, op, ParseCastExpression()); // Changed here too
             }
             return left;
         }
@@ -255,6 +255,23 @@ namespace Sage.Core
             }
 
             throw new Exception($"Unexpected token in expression: {Current.Type} ('{Current.Value}')");
+        }
+
+        /// <summary>
+        /// Parses explicit type casts using the 'as' keyword (e.g., expr as type).
+        /// Since 'as' is left-associative, we loop to handle chaining (x as f64 as i32).
+        /// </summary>
+        private AstNode ParseCastExpression()
+        {
+            var expression = ParsePrimary();
+
+            while (Match(TokenType.Keyword_As))
+            {
+                string targetType = ConsumeType();
+                expression = new CastExpressionNode(expression, targetType);
+            }
+
+            return expression;
         }
     }
 }

@@ -32,17 +32,30 @@ namespace Sage.Core
             { "func", TokenType.Keyword_Func },
             { "return", TokenType.Keyword_Return },
             { "module", TokenType.Keyword_Module },
-            { "var", TokenType.Keyword_Var },     // Added support
-            { "const", TokenType.Keyword_Const }, // Added support
+            { "var", TokenType.Keyword_Var },
+            { "const", TokenType.Keyword_Const },
+            { "as", TokenType.Keyword_As },
 
-            { "i8", TokenType.Type_I8 },   { "u8", TokenType.Type_U8 },
-            { "i16", TokenType.Type_I16 }, { "u16", TokenType.Type_U16 },
-            { "i32", TokenType.Type_I32 }, { "u32", TokenType.Type_U32 },
-            { "i64", TokenType.Type_I64 }, { "u64", TokenType.Type_U64 },
-            { "f32", TokenType.Type_F32 }, { "f64", TokenType.Type_F64 },
-            { "b8", TokenType.Type_B8 },   { "c8", TokenType.Type_C8 },
-            { "c16", TokenType.Type_C16 }, { "c32", TokenType.Type_C32 },
-            { "str", TokenType.Type_Str }, { "none", TokenType.Type_Void },
+            { "i8", TokenType.Type_I8 },
+            { "u8", TokenType.Type_U8 },
+            { "i16", TokenType.Type_I16 },
+            { "u16", TokenType.Type_U16 },
+            { "i32", TokenType.Type_I32 },
+            { "u32", TokenType.Type_U32 },
+            { "i64", TokenType.Type_I64 },
+            { "u64", TokenType.Type_U64 },
+
+            { "f32", TokenType.Type_F32 },
+            { "f64", TokenType.Type_F64 },
+
+            { "b8", TokenType.Type_B8 },
+
+            { "c8", TokenType.Type_C8 },
+            { "c16", TokenType.Type_C16 },
+            { "c32", TokenType.Type_C32 },
+
+            { "str", TokenType.Type_Str },
+            { "none", TokenType.Type_Void },
         };
 
         /// <summary>

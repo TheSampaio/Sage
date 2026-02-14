@@ -47,5 +47,8 @@ namespace Sage.Interfaces
 
         /// <summary>Visits a string node containing interpolation markers.</summary>
         T Visit(InterpolatedStringNode node);
+
+        /// <summary>Visits a cast node for type casting.</summary>
+        T Visit(CastExpressionNode node);
     }
 }
