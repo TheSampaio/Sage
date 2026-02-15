@@ -1,24 +1,15 @@
-﻿using Sage.Ast;
+﻿using System.Text;
+using Sage.Ast;
 using Sage.Enums;
 using Sage.Interfaces;
-using System.Text;
 
 namespace Sage.Core
 {
-    /// <summary>
-    /// Responsible for traversing the Sage AST and emitting equivalent C code.
-    /// Implements the Visitor pattern to decouple node logic from code emission.
-    /// </summary>
     public class CodeGenerator : ICodeGenerator, IAstVisitor<string>
     {
         private int _indent = 0;
         private string Indent => new(' ', _indent * 4);
 
-        /// <summary>
-        /// Entry point for the code generation. Prepends standard headers and Sage type aliases.
-        /// </summary>
-        /// <param name="ast">The root program node.</param>
-        /// <returns>A string containing the full C source code.</returns>
         public string Generate(ProgramNode ast)
         {
             var sb = new StringBuilder();
@@ -30,32 +21,18 @@ namespace Sage.Core
             sb.AppendLine("");
 
             sb.AppendLine("/* --- Sage Type Definitions --- */");
-
-            sb.AppendLine("typedef int8_t i8;");
-            sb.AppendLine("typedef int16_t i16;");
-            sb.AppendLine("typedef int32_t i32;");
-            sb.AppendLine("typedef int64_t i64;");
-
-            sb.AppendLine("typedef uint8_t u8;");
-            sb.AppendLine("typedef uint16_t u16;");
-            sb.AppendLine("typedef uint32_t u32;");
-            sb.AppendLine("typedef uint64_t u64;");
-
-            sb.AppendLine("typedef float f32;");
-            sb.AppendLine("typedef double f64;");
-
-            sb.AppendLine("typedef bool b8;");
-            sb.AppendLine("typedef char c8;");
-            sb.AppendLine("typedef char16_t c16;");
-            sb.AppendLine("typedef char32_t c32;");
-
-            sb.AppendLine("typedef char* str;");
-            sb.AppendLine("typedef void none;");
-
+            sb.AppendLine("typedef int8_t   i8;  typedef uint8_t  u8;");
+            sb.AppendLine("typedef int16_t  i16; typedef uint16_t u16;");
+            sb.AppendLine("typedef int32_t  i32; typedef uint32_t u32;");
+            sb.AppendLine("typedef int64_t  i64; typedef uint64_t u64;");
+            sb.AppendLine("typedef float    f32; typedef double   f64;");
+            sb.AppendLine("typedef bool     b8;  typedef char* str;");
+            sb.AppendLine("typedef void     none;");
             sb.AppendLine("");
-            sb.AppendLine("/* --- Generated Logic --- */");
 
+            sb.AppendLine("/* --- Generated Logic --- */");
             sb.Append(ast.Accept(this));
+
             return sb.ToString();
         }
 
@@ -66,13 +43,10 @@ namespace Sage.Core
             return sb.ToString();
         }
 
-        /// <summary>
-        /// Handles module-level scoping by prefixing functions with the module name.
-        /// </summary>
         public string Visit(ModuleNode node)
         {
             var sb = new StringBuilder();
-            sb.AppendLine($"// Module: {node.Name}");
+            sb.AppendLine($"/* Module: {node.Name} */");
             foreach (var func in node.Functions)
             {
                 func.ModuleOwner = node.Name;
@@ -81,30 +55,43 @@ namespace Sage.Core
             return sb.ToString();
         }
 
-        /// <summary>
-        /// Translates Sage function declarations to C, ensuring 'main' follows standard C naming.
-        /// </summary>
         public string Visit(FunctionDeclarationNode node)
         {
+            bool isMain = node.Name.Equals("main", StringComparison.OrdinalIgnoreCase);
+            string cReturnType = isMain ? "int" : ConvertType(node.ReturnType);
+            string cName = isMain ? "main" : (string.IsNullOrEmpty(node.ModuleOwner) ? node.Name : $"{node.ModuleOwner}_{node.Name}");
+
             var sb = new StringBuilder();
-            string cName = node.Name;
+            sb.Append($"{Indent}{cReturnType} {cName}(");
 
-            if (!string.IsNullOrEmpty(node.ModuleOwner))
-                cName = $"{node.ModuleOwner}_{node.Name}";
-
-            if (node.Name.Equals("main", StringComparison.CurrentCultureIgnoreCase))
-                cName = "main";
-
-            sb.Append($"{Indent}{node.ReturnType} {cName}(");
-
-            for (int i = 0; i < node.Parameters.Count; i++)
+            if (node.Parameters.Count == 0)
             {
-                sb.Append($"{node.Parameters[i].Type} {node.Parameters[i].Name}");
-                if (i < node.Parameters.Count - 1) sb.Append(", ");
+                sb.Append("void");
+            }
+            else
+            {
+                for (int i = 0; i < node.Parameters.Count; i++)
+                {
+                    sb.Append($"{ConvertType(node.Parameters[i].Type)} {node.Parameters[i].Name}");
+                    if (i < node.Parameters.Count - 1) sb.Append(", ");
+                }
+            }
+            sb.AppendLine(")");
+
+            if (isMain)
+            {
+                sb.AppendLine($"{Indent}{{");
+                _indent++;
+                foreach (var stmt in node.Body.Statements) sb.Append(stmt.Accept(this));
+                sb.AppendLine($"{Indent}return 0;");
+                _indent--;
+                sb.AppendLine($"{Indent}}}");
+            }
+            else
+            {
+                sb.Append(node.Body.Accept(this));
             }
 
-            sb.AppendLine(")");
-            sb.Append(node.Body.Accept(this));
             return sb.ToString();
         }
 
@@ -121,22 +108,45 @@ namespace Sage.Core
 
         public string Visit(VariableDeclarationNode node)
         {
-            return $"{Indent}{node.Type} {node.Name} = {node.Initializer.Accept(this)};\n";
+            string prefix = node.IsConstant ? "const " : "";
+            // Removed extra indentation call here to prevent drift
+            return $"{Indent}{prefix}{ConvertType(node.Type)} {node.Name} = {node.Initializer.Accept(this)};\n";
         }
 
-        public string Visit(ReturnNode node)
+        // Assignment doesn't need Indent/Semicolon because it's usually inside an ExpressionStatement
+        public string Visit(AssignmentNode node) => $"{node.Name} = {node.Expression.Accept(this)}";
+
+        public string Visit(IfNode node)
         {
-            return $"{Indent}return {node.Expression.Accept(this)};\n";
+            var sb = new StringBuilder();
+            sb.AppendLine($"{Indent}if ({node.Condition.Accept(this)})");
+            sb.Append(node.ThenBranch.Accept(this));
+            if (node.ElseBranch != null)
+            {
+                sb.AppendLine($"{Indent}else");
+                sb.Append(node.ElseBranch.Accept(this));
+            }
+            return sb.ToString();
         }
 
-        public string Visit(ExpressionStatementNode node)
+        public string Visit(WhileNode node)
         {
-            return $"{Indent}{node.Expression.Accept(this)};\n";
+            var sb = new StringBuilder();
+            sb.AppendLine($"{Indent}while ({node.Condition.Accept(this)})");
+            sb.Append(node.Body.Accept(this));
+            return sb.ToString();
         }
 
-        public string Visit(UseNode node)
+        public string Visit(ForNode node)
         {
-            return $"// use {node.Module};\n";
+            var sb = new StringBuilder();
+            string init = node.Initializer != null ? node.Initializer.Accept(this).Trim().TrimEnd(';') : "";
+            string cond = node.Condition != null ? node.Condition.Accept(this) : "";
+            string inc = node.Increment != null ? node.Increment.Accept(this) : "";
+
+            sb.AppendLine($"{Indent}for ({init}; {cond}; {inc})");
+            sb.Append(node.Body.Accept(this));
+            return sb.ToString();
         }
 
         public string Visit(BinaryExpressionNode node)
@@ -147,90 +157,80 @@ namespace Sage.Core
                 TokenType.Minus => "-",
                 TokenType.Asterisk => "*",
                 TokenType.Slash => "/",
+                TokenType.Percent => "%",
+                TokenType.EqualEqual => "==",
+                TokenType.NotEqual => "!=",
+                TokenType.Less => "<",
+                TokenType.LessEqual => "<=",
+                TokenType.Greater => ">",
+                TokenType.GreaterEqual => ">=",
+                TokenType.AmpersandAmpersand => "&&",
+                TokenType.PipePipe => "||",
                 _ => "?"
             };
             return $"({node.Left.Accept(this)} {op} {node.Right.Accept(this)})";
         }
 
+        public string Visit(UnaryExpressionNode node)
+        {
+            if (node.IsPostfix && node.Operator == TokenType.PlusPlus)
+                return $"({node.Operand.Accept(this)}++)";
+
+            string op = node.Operator switch { TokenType.Bang => "!", TokenType.Minus => "-", _ => "" };
+            return $"({op}{node.Operand.Accept(this)})";
+        }
+
         public string Visit(LiteralNode node)
         {
             if (node.TypeName == "string") return $"\"{node.Value}\"";
-
-            if (node.TypeName == "f32") return $"{node.Value}f";
-
-            if (node.TypeName == "f64") return $"{node.Value}";
-
-            return node.Value.ToString();
+            if (node.TypeName == "b8") return (bool)node.Value ? "true" : "false";
+            return node.Value.ToString() ?? "";
         }
 
-        public string Visit(IdentifierNode node)
-        {
-            return node.Name.Replace("::", "_");
-        }
+        public string Visit(IdentifierNode node) => node.Name.Replace("::", "_");
 
         /// <summary>
-        /// Translates function calls. Implements a specialized transformation for 'console::print_line' 
-        /// into C's 'printf' with basic interpolation support.
+        /// Fixed: Generates the printf call without internal indentation or semicolons.
         /// </summary>
         public string Visit(FunctionCallNode node)
         {
-            if (node.Name == "console::print_line")
+            if (node.Name == "console::print_line" && node.Arguments[0] is LiteralNode lit)
             {
-                var sb = new StringBuilder();
-                sb.Append("printf(");
+                string tpl = lit.Value.ToString() ?? "";
+                var parts = tpl.Split('{', '}');
+                var fmt = new StringBuilder();
+                var args = new List<string>();
 
-                if (node.Arguments.Count > 0 && node.Arguments[0] is LiteralNode lit)
+                for (int i = 0; i < parts.Length; i++)
                 {
-                    string template = lit.Value.ToString();
-                    var vars = new List<string>();
-                    var cleanTemplate = new StringBuilder();
-
-                    for (int i = 0; i < template.Length; i++)
+                    if (i % 2 == 0) fmt.Append(parts[i]);
+                    else
                     {
-                        if (template[i] == '{')
-                        {
-                            // Use %g for general numbers (works for i32 and f32)
-                            // Use %s for strings. For now, we'll guess based on context or use %g.
-                            cleanTemplate.Append("%g");
-
-                            int start = ++i;
-                            while (i < template.Length && template[i] != '}') i++;
-
-                            string expression = template[start..i];
-                            vars.Add(expression.Replace("::", "_"));
-                        }
-                        else
-                        {
-                            cleanTemplate.Append(template[i]);
-                        }
-                    }
-
-                    cleanTemplate.Append("\\n");
-                    sb.Append($"\"{cleanTemplate}\"");
-
-                    if (vars.Count > 0)
-                    {
-                        sb.Append(", ");
-                        // Cast to double to ensure %g works reliably with printf's variadic arguments
-                        var castedVars = vars.Select(v => $"(double)({v})");
-                        sb.Append(string.Join(", ", castedVars));
+                        fmt.Append("%d");
+                        args.Add(parts[i].Replace("::", "_"));
                     }
                 }
-                sb.Append(')');
-                return sb.ToString();
+                string argsStr = args.Count > 0 ? ", " + string.Join(", ", args) : "";
+                // Return just the C expression
+                return $"printf(\"{fmt}\\n\"{argsStr})";
             }
 
-            // Standard function call logic
-            string cName = node.Name.Replace("::", "_");
-            var args = node.Arguments.Select(a => a.Accept(this));
-            return $"{cName}({string.Join(", ", args)})";
+            var cArgs = node.Arguments.Select(a => a.Accept(this));
+            return $"{node.Name.Replace("::", "_")}({string.Join(", ", cArgs)})";
         }
 
-        public string Visit(InterpolatedStringNode node) => "\"Not Implemented\"";
+        public string Visit(ReturnNode node) => $"{Indent}return {node.Expression.Accept(this)};\n";
 
-        public string Visit(CastExpressionNode node)
-        {
-            return $"({node.TargetType}){node.Expression.Accept(this)}";
-        }
+        /// <summary>
+        /// This is the primary driver for expression formatting in the C file.
+        /// It provides the indentation and the terminal semicolon.
+        /// </summary>
+        public string Visit(ExpressionStatementNode node) => $"{Indent}{node.Expression.Accept(this)};\n";
+
+        public string Visit(UseNode node) => "";
+        public string Visit(InterpolatedStringNode node) => "";
+        public string Visit(CastExpressionNode node) => $"(({ConvertType(node.TargetType)}){node.Expression.Accept(this)})";
+
+        private string ConvertType(string t) => t == "void" ? "none" : t;
     }
 }

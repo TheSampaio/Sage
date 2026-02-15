@@ -1,29 +1,25 @@
 ﻿namespace Sage.Enums
 {
     /// <summary>
-    /// Categorizes the various types of symbols, keywords, and literals identified in Sage source code.
+    /// Defines all valid token types recognized by the Sage Lexer and Parser.
+    /// Organized by functional categories for architectural clarity.
     /// </summary>
     public enum TokenType
     {
-        // --- Control Tokens ---
-        EndOfFile,
-        Unknown,
-
-        // --- Identifiers & Literals ---
-        Identifier,
-        Integer,
-        Float,
-        String,
-        InterpolatedString,
-
         // --- Keywords ---
         Keyword_Use,
-        Keyword_Module,
         Keyword_Func,
         Keyword_Return,
+        Keyword_Module,
         Keyword_Var,
         Keyword_Const,
         Keyword_As,
+        Keyword_True,
+        Keyword_False,
+        Keyword_If,
+        Keyword_Else,
+        Keyword_While,
+        Keyword_For,
 
         // --- Signed Integers ---
         Type_I8,
@@ -37,38 +33,59 @@
         Type_U32,
         Type_U64,
 
-        // --- Floating-Point Types ---
+        // --- Floating Point ---
         Type_F32,
         Type_F64,
 
-        // --- Boolean Type ---
-        Type_B8,
+        // --- Boolean & Text Types ---
+        Type_B8,      // 8-bit Boolean
+        Type_C8,      // 8-bit Character
+        Type_C16,     // 16-bit Character
+        Type_C32,     // 32-bit Character
+        Type_Str,     // String pointer
+        Type_Void,    // Represents "none" or no return value
 
-        // --- Character Types ---
-        Type_C8,
-        Type_C16,
-        Type_C32,
+        // --- Arithmetic Operators ---
+        Plus,         // +
+        PlusPlus,     // ++
+        Minus,        // -
+        Asterisk,     // *
+        Slash,        // /
+        Percent,      // %
+        Equals,       // =
 
-        // --- String & Void Type ---
-        Type_Str,
-        Type_Void,
-
-        // --- Operators ---
-        Plus,       // +
-        Minus,      // -
-        Asterisk,   // *
-        Slash,      // /
-        Equals,     // =
-        Arrow,      // -> (Useful for function return signatures)
+        // --- Comparison & Logical Operators ---
+        EqualEqual,   // ==
+        NotEqual,     // !=
+        Less,         // <
+        LessEqual,    // <=
+        Greater,      // >
+        GreaterEqual, // >=
+        Bang,         // !
+        AmpersandAmpersand, // &&
+        PipePipe,     // ||
 
         // --- Punctuation & Delimiters ---
-        OpenParen,   // (
-        CloseParen,  // )
-        OpenBrace,   // {
-        CloseBrace,  // }
-        Semicolon,   // ;
-        Comma,       // ,
-        Colon,       // :
-        DoubleColon  // ::
+        OpenParen,    // (
+        CloseParen,   // )
+        OpenBrace,    // {
+        CloseBrace,   // }
+        OpenBracket,  // [
+        CloseBracket, // ]
+        Semicolon,    // ;
+        Comma,        // ,
+        Colon,        // :
+        DoubleColon,  // ::
+        Arrow,        // ->
+
+        // --- Literals & Identifiers ---
+        Identifier,   // User-defined names
+        Integer,      // Numeric literal
+        Float,        // Floating-point literal
+        String,       // String literal
+
+        // --- Special ---
+        Unknown,      // Error fallback
+        EndOfFile     // End of token stream (\0)
     }
 }

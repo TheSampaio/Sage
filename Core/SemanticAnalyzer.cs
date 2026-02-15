@@ -1,50 +1,47 @@
 ﻿using Sage.Ast;
+using Sage.Enums;
 using Sage.Interfaces;
-using System;
+using Sage.Utilities;
 
 namespace Sage.Core
 {
     /// <summary>
-    /// Performs semantic validation on the Abstract Syntax Tree (AST).
-    /// Ensures variables are declared before use, validates types, and checks string interpolation contents.
+    /// Performs static semantic analysis on the Abstract Syntax Tree (AST).
+    /// Responsible for type checking, scope management, and identifier resolution.
     /// </summary>
     public class SemanticAnalyzer : IAstVisitor<string>
     {
         private readonly SymbolTable _symbolTable = new();
-        private bool IsNumeric(string type) => type is "i32" or "f64" or "i8" or "u8" or "f32" or "i64";
 
         /// <summary>
         /// Orchestrates the semantic analysis of the entire program.
         /// </summary>
-        /// <param name="program">The root node of the program to be analyzed.</param>
-        public void Analyze(ProgramNode program)
-        {
-            program.Accept(this);
-        }
+        /// <param name="program">The root node of the AST to analyze.</param>
+        public void Analyze(ProgramNode program) => program.Accept(this);
 
-        /// <summary>Visits the program root and analyzes all top-level statements.</summary>
-        /// <param name="node">The program node.</param>
-        /// <returns>The string "none".</returns>
+        /// <summary>
+        /// Checks if a Sage type is considered numeric for arithmetic operations.
+        /// </summary>
+        /// <param name="type">The type name to check.</param>
+        /// <returns>True if the type is a signed/unsigned integer or floating point.</returns>
+        private static bool IsNumeric(string type) =>
+            type is "i8" or "u8" or "i16" or "u16" or "i32" or "u32" or "i64" or "u64" or "f32" or "f64";
+
         public string Visit(ProgramNode node)
         {
-            foreach (var stmt in node.Statements) stmt.Accept(this);
+            foreach (var statement in node.Statements) statement.Accept(this);
             return "none";
         }
 
-        /// <summary>Visits a module and analyzes its internal function declarations.</summary>
-        /// <param name="node">The module node.</param>
-        /// <returns>The string "none".</returns>
         public string Visit(ModuleNode node)
         {
-            foreach (var func in node.Functions) func.Accept(this);
+            foreach (var function in node.Functions) function.Accept(this);
             return "none";
         }
 
         /// <summary>
-        /// Manages function-level scoping and parameter registration with their respective types.
+        /// Handles function-level scoping. Parameters are registered in a new local scope.
         /// </summary>
-        /// <param name="node">The function declaration node.</param>
-        /// <returns>The declared return type of the function.</returns>
         public string Visit(FunctionDeclarationNode node)
         {
             _symbolTable.EnterScope();
@@ -60,32 +57,27 @@ namespace Sage.Core
             return node.ReturnType;
         }
 
-        /// <summary>Visits a block and analyzes all statements within it.</summary>
-        /// <param name="node">The block node.</param>
-        /// <returns>The string "none".</returns>
         public string Visit(BlockNode node)
         {
-            foreach (var stmt in node.Statements) stmt.Accept(this);
+            foreach (var statement in node.Statements) statement.Accept(this);
             return "none";
         }
 
         /// <summary>
-        /// Validates variable initialization, checks type compatibility, and registers the identifier.
+        /// Validates variable/constant declarations. Enforces explicit initialization and type compatibility.
         /// </summary>
-        /// <param name="node">The variable declaration node.</param>
-        /// <returns>The type of the declared variable.</returns>
-        /// <exception cref="Exception">Thrown when types between declaration and initializer mismatch.</exception>
         public string Visit(VariableDeclarationNode node)
         {
-            string initializerType = node.Initializer.Accept(this);
+            string initType = node.Initializer.Accept(this);
 
-            if (node.Type != initializerType)
+            if (node.Type != initType)
             {
-                // Basic promotion: allow i32 to be assigned to f64
-                if (node.Type == "f64" && initializerType == "i32") { /* OK */ }
+                // Implicit promotion rule: i32 can be assigned to f64
+                if (node.Type == "f64" && initType == "i32") { /* Allowed */ }
                 else
                 {
-                    throw new Exception($"[TYPE ERROR] Cannot assign {initializerType} to variable '{node.Name}' of type {node.Type}.");
+                    throw new CompilerException(null, "S101",
+                        $"Type Mismatch: Cannot assign {initType} to {node.Name} of type {node.Type}.");
                 }
             }
 
@@ -93,180 +85,133 @@ namespace Sage.Core
             return node.Type;
         }
 
-        /// <summary>Resolves the type of an identifier from the symbol table.</summary>
-        /// <param name="node">The identifier node.</param>
-        /// <returns>The resolved Sage type of the identifier.</returns>
-        /// <exception cref="Exception">Thrown if the variable has not been declared.</exception>
+        /// <summary>
+        /// Validates variable assignments. Ensures target exists and types are compatible.
+        /// </summary>
+        public string Visit(AssignmentNode node)
+        {
+            string? varType = _symbolTable.Resolve(node.Name);
+            if (varType == null)
+                throw new CompilerException(null, "S105", $"Usage Error: Variable '{node.Name}' not declared.");
+
+            string exprType = node.Expression.Accept(this);
+
+            if (varType != exprType)
+            {
+                if (varType == "f64" && exprType == "i32") return "f64";
+                throw new CompilerException(null, "S108", $"Type Mismatch: Cannot assign {exprType} to {varType}.");
+            }
+            return varType;
+        }
+
+        public string Visit(IfNode node)
+        {
+            if (node.Condition.Accept(this) != "b8")
+                throw new CompilerException(null, "S102", "Control Flow Error: 'if' condition must be b8 (boolean).");
+
+            node.ThenBranch.Accept(this);
+            node.ElseBranch?.Accept(this);
+            return "none";
+        }
+
+        public string Visit(WhileNode node)
+        {
+            if (node.Condition.Accept(this) != "b8")
+                throw new CompilerException(null, "S103", "Control Flow Error: 'while' condition must be b8 (boolean).");
+
+            node.Body.Accept(this);
+            return "none";
+        }
+
+        /// <summary>
+        /// Handles 'for' loops with an isolated scope for the initializer variable.
+        /// </summary>
+        public string Visit(ForNode node)
+        {
+            _symbolTable.EnterScope();
+
+            node.Initializer?.Accept(this);
+            if (node.Condition != null && node.Condition.Accept(this) != "b8")
+                throw new CompilerException(null, "S104", "Control Flow Error: 'for' condition must be b8 (boolean).");
+
+            node.Increment?.Accept(this);
+            node.Body.Accept(this);
+
+            _symbolTable.ExitScope();
+            return "none";
+        }
+
         public string Visit(IdentifierNode node)
         {
-            if (node.Name.Contains("::")) return "f64"; // Default for external modules for now
+            // Simple handling for external namespaces for now
+            if (node.Name.Contains("::")) return "f64";
 
-            string type = _symbolTable.Resolve(node.Name);
+            string? type = _symbolTable.Resolve(node.Name);
             if (type == null)
-            {
-                throw new Exception($"[SEMANTIC ERROR] Variable '{node.Name}' used but not declared.");
-            }
+                throw new CompilerException(null, "S105", $"Usage Error: Identifier '{node.Name}' not found in current scope.");
+
             return type;
         }
 
         /// <summary>
-        /// Validates function calls and performs deep inspection of string templates for console output.
+        /// Validates binary operations, including arithmetic promotion and boolean logic results.
         /// </summary>
-        /// <param name="node">The function call node.</param>
-        /// <returns>The return type of the function (currently defaults to "f64").</returns>
-        public string Visit(FunctionCallNode node)
-        {
-            foreach (var arg in node.Arguments)
-            {
-                arg.Accept(this);
-            }
-
-            if (node.Name == "console::print_line" && node.Arguments.Count > 0 && node.Arguments[0] is LiteralNode lit)
-            {
-                string template = lit.Value.ToString();
-                ValidateStringInterpolation(template);
-            }
-
-            return "f64";
-        }
-
-        /// <summary>Analyzes a binary expression and ensures both sides have compatible types.</summary>
-        /// <param name="node">The binary expression node.</param>
-        /// <returns>The resulting type of the binary operation.</returns>
         public string Visit(BinaryExpressionNode node)
         {
-            string leftType = node.Left.Accept(this);
-            string rightType = node.Right.Accept(this);
+            string lhs = node.Left.Accept(this);
+            string rhs = node.Right.Accept(this);
 
-            if (leftType != rightType)
+            // Comparison Operators (Result is always boolean b8)
+            if (node.Operator is TokenType.EqualEqual or TokenType.NotEqual or TokenType.Less or
+                TokenType.LessEqual or TokenType.Greater or TokenType.GreaterEqual)
             {
-                if ((leftType == "f64" && rightType == "i32") || (leftType == "i32" && rightType == "f64"))
-                    return "f64";
-
-                throw new Exception($"[TYPE ERROR] Mismatched types in binary expression: {leftType} and {rightType}.");
+                if (lhs != rhs && !(IsNumeric(lhs) && IsNumeric(rhs)))
+                    throw new CompilerException(null, "S106", $"Type Mismatch: Cannot compare {lhs} with {rhs}.");
+                return "b8";
             }
 
-            return leftType;
+            // Logical Operators
+            if (node.Operator is TokenType.AmpersandAmpersand or TokenType.PipePipe)
+            {
+                if (lhs != "b8" || rhs != "b8")
+                    throw new CompilerException(null, "S107", "Type Mismatch: Logical operators require b8 operands.");
+                return "b8";
+            }
+
+            // Arithmetic Operators
+            if (lhs != rhs)
+            {
+                if ((lhs == "f64" && rhs == "i32") || (lhs == "i32" && rhs == "f64")) return "f64";
+                throw new CompilerException(null, "S108", $"Type Mismatch: Arithmetic operation between {lhs} and {rhs} is invalid.");
+            }
+
+            return lhs;
         }
 
-        /// <summary>Returns the type name of the literal value.</summary>
-        /// <param name="node">The literal node.</param>
-        /// <returns>The literal's type name.</returns>
+        public string Visit(UnaryExpressionNode node)
+        {
+            string type = node.Operand.Accept(this);
+
+            if (node.Operator == TokenType.Bang && type != "b8")
+                throw new CompilerException(null, "S109", "Type Mismatch: '!' operator requires b8 operand.");
+
+            if (node.Operator == TokenType.PlusPlus && !IsNumeric(type))
+                throw new CompilerException(null, "S110", "Type Mismatch: Increment '++' requires numeric operand.");
+
+            return type;
+        }
+
+        public string Visit(FunctionCallNode node)
+        {
+            foreach (var arg in node.Arguments) arg.Accept(this);
+            return "f64"; // Default return type for external/unresolved calls
+        }
+
         public string Visit(LiteralNode node) => node.TypeName;
-
-        /// <summary>Analyzes a return statement.</summary>
-        /// <param name="node">The return node.</param>
-        /// <returns>The type of the returned expression.</returns>
         public string Visit(ReturnNode node) => node.Expression.Accept(this);
-
-        /// <summary>Analyzes a standalone expression statement.</summary>
-        /// <param name="node">The expression statement node.</param>
-        /// <returns>The type of the underlying expression.</returns>
         public string Visit(ExpressionStatementNode node) => node.Expression.Accept(this);
-
-        /// <summary>Analyzes a 'use' directive.</summary>
-        /// <param name="node">The use node.</param>
-        /// <returns>The string "none".</returns>
         public string Visit(UseNode node) => "none";
-
-        /// <summary>Analyzes an interpolated string node.</summary>
-        /// <param name="node">The interpolated string node.</param>
-        /// <returns>The string type "str".</returns>
         public string Visit(InterpolatedStringNode node) => "str";
-
-        /// <summary>
-        /// Validates explicit type casts.
-        /// Allows numeric conversions but prevents invalid casts (e.g., string to int).
-        /// </summary>
-        public string Visit(CastExpressionNode node)
-        {
-            string sourceType = node.Expression.Accept(this);
-            string targetType = node.TargetType;
-
-            if (sourceType == targetType) return targetType;
-
-            bool isSourceNumeric = IsNumeric(sourceType);
-            bool isTargetNumeric = IsNumeric(targetType);
-
-            if (isSourceNumeric && isTargetNumeric)
-            {
-                return targetType;
-            }
-
-            throw new Exception($"[TYPE ERROR] Cannot cast from '{sourceType}' to '{targetType}'. Explicit conversion not supported.");
-        }
-
-        #region Helper Methods
-
-        /// <summary>
-        /// Scans a string literal for interpolation markers {} and validates the expressions inside them.
-        /// </summary>
-        /// <param name="template">The raw string template content.</param>
-        private void ValidateStringInterpolation(string template)
-        {
-            int i = 0;
-            while (i < template.Length)
-            {
-                if (template[i] == '{')
-                {
-                    i++;
-                    int start = i;
-                    while (i < template.Length && template[i] != '}') i++;
-
-                    if (i < template.Length)
-                    {
-                        string content = template[start..i].Trim();
-                        ValidateInterpolatedExpression(content);
-                    }
-                }
-                i++;
-            }
-        }
-
-        /// <summary>
-        /// Validates identifiers used within interpolation braces.
-        /// </summary>
-        /// <param name="expression">The expression content inside the braces.</param>
-        private void ValidateInterpolatedExpression(string expression)
-        {
-            if (expression.Contains('('))
-            {
-                int open = expression.IndexOf('(');
-                int close = expression.LastIndexOf(')');
-                if (open != -1 && close > open)
-                {
-                    string argsStr = expression.Substring(open + 1, close - open - 1);
-                    var args = argsStr.Split(',');
-                    foreach (var arg in args)
-                    {
-                        string varName = arg.Trim();
-                        if (!string.IsNullOrEmpty(varName) && !char.IsDigit(varName[0]))
-                        {
-                            CheckVariable(varName);
-                        }
-                    }
-                }
-            }
-            else
-            {
-                CheckVariable(expression);
-            }
-        }
-
-        /// <summary>
-        /// Performs a symbol table lookup for a specific variable name.
-        /// </summary>
-        /// <param name="name">The variable name to check.</param>
-        private void CheckVariable(string name)
-        {
-            if (string.IsNullOrWhiteSpace(name) || name.Contains("::")) return;
-
-            if (_symbolTable.Resolve(name) == null)
-            {
-                throw new Exception($"[SEMANTIC ERROR] Variable '{name}' used inside string interpolation but not declared.");
-            }
-        }
-
-        #endregion
+        public string Visit(CastExpressionNode node) => node.TargetType;
     }
 }
