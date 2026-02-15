@@ -1,5 +1,9 @@
 # Sage Programming Language
 
+<p align="center">
+  <img src="Assets/Images/sage-programming-language-logo.png" alt="Sage Logo">
+</p>
+
 **Sage** is a statically typed, compiled programming language designed for high-performance applications and systems development. 
 The compiler is implemented in **C# (.NET 8)** and operates as a full toolchain: it **transpiles** Sage source code (`.sg`) into optimized **C11** code and then orchestrates a native C compiler (GCC) to produce a standalone **Windows Executable (`.exe`)**.
 
