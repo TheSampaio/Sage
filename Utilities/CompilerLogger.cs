@@ -1,18 +1,23 @@
 ﻿using System.Diagnostics;
+using Sage.Core;
+using Sage.Enums;
 
 namespace Sage.Utilities
 {
     /// <summary>
     /// Provides standardized, color-coded console logging for the Sage compiler pipeline.
+    /// Supports semantic error formatting, progress tracking, and debug tracing.
     /// </summary>
-    internal static class CompilerLogger
+    public static class CompilerLogger
     {
+        /// <summary>Logs a major step in the compilation process (e.g., "1. Tokenizing...").</summary>
         public static void LogStep(string message) => Console.WriteLine(message);
 
+        /// <summary>Logs general information about the compilation context.</summary>
         public static void LogInfo(string message) => Console.WriteLine($"[INFO] {message}");
 
         /// <summary>
-        /// Logs non-fatal issues that don't stop the compilation process.
+        /// Logs a non-fatal warning that does not halt the compilation.
         /// </summary>
         public static void LogWarning(string message)
         {
@@ -22,17 +27,30 @@ namespace Sage.Utilities
         }
 
         /// <summary>
-        /// Logs debug information. These calls are automatically stripped 
-        /// from the binary in Release mode.
+        /// Logs a specific syntax or semantic error associated with a source token.
+        /// Follows the standard format: file(line,col): error CODE: Message
         /// </summary>
-        [Conditional("DEBUG")]
-        public static void LogDebug(string message)
+        public static void LogError(Token token, string code, string message)
         {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"   [DEBUG] {message}");
+            Console.ForegroundColor = ConsoleColor.Red;
+            // Standard format allows IDEs to parse the location automatically
+            Console.WriteLine($"main.sg({token.Line},{token.Column}): error {code}: {message}");
             Console.ResetColor();
         }
 
+        /// <summary>
+        /// Logs a generic system or infrastructure error (e.g., IO failures).
+        /// </summary>
+        public static void LogError(string message)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"[SYS ERROR] {message}");
+            Console.ResetColor();
+        }
+
+        /// <summary>
+        /// Logs a successful operation or completed phase.
+        /// </summary>
         public static void LogSuccess(string message)
         {
             Console.ForegroundColor = ConsoleColor.Green;
@@ -40,27 +58,41 @@ namespace Sage.Utilities
             Console.ResetColor();
         }
 
-        public static void LogError(string message)
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"[ERROR] {message}");
-            Console.ResetColor();
-        }
-
         /// <summary>
-        /// Logs a critical failure and displays the stack trace for deep debugging.
+        /// Logs a critical failure, handling both Sage-specific and generic C# exceptions.
         /// </summary>
         public static void LogFatal(Exception ex)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"\n[FATAL ERROR] {ex.Message}");
 
-            if (ex.StackTrace != null)
+            if (ex is CompilerException sce)
             {
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine(ex.StackTrace);
+                // Format the error nicely using our token-based system
+                var token = sce.OffendingToken ?? new Token(TokenType.Unknown, "?", 0, 0);
+                LogError(token, sce.ErrorCode, sce.Message);
+            }
+            else
+            {
+                // Generic system crash
+                Console.WriteLine($"\n[FATAL ERROR] {ex.Message}");
+                if (ex.StackTrace != null)
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.WriteLine(ex.StackTrace);
+                }
             }
 
+            Console.ResetColor();
+        }
+
+        /// <summary>
+        /// Logs internal debug information. Stripped from production builds.
+        /// </summary>
+        [Conditional("DEBUG")]
+        public static void LogDebug(string message)
+        {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine($"    [DEBUG] {message}");
             Console.ResetColor();
         }
     }

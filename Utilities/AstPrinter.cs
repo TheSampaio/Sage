@@ -2,39 +2,37 @@
 using System.Text.Json.Serialization;
 using Sage.Ast;
 using Sage.Interfaces;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace Sage.Utilities
 {
     /// <summary>
-    /// Utility class that traverses the Abstract Syntax Tree (AST) to generate a 
-    /// standardized JSON representation. Highly efficient for external tool integration.
+    /// Serializes the Abstract Syntax Tree (AST) into a human-readable JSON format.
+    /// Useful for debugging the Parser output and verifying tree structure.
     /// </summary>
     public class AstPrinter : IAstVisitor<object>
     {
+        private readonly JsonSerializerOptions _options = new()
+        {
+            WriteIndented = true,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            // Ensures TokenType enums are serialized as strings (e.g., "Plus") instead of integers
+            Converters = { new JsonStringEnumConverter() }
+        };
+
         /// <summary>
-        /// Entry point to serialize the entire program into an indented JSON string.
+        /// Converts the AST starting from the root ProgramNode into a formatted JSON string.
         /// </summary>
-        /// <param name="node">The root ProgramNode of the AST.</param>
-        /// <returns>A formatted JSON string representing the full AST hierarchy.</returns>
+        /// <param name="node">The root node of the AST.</param>
+        /// <returns>A JSON representation of the tree.</returns>
         public string Print(ProgramNode node)
         {
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-                // Ensures TokenType enums are readable strings
-                Converters = { new JsonStringEnumConverter() }
-            };
-
-            return JsonSerializer.Serialize(node.Accept(this), options);
+            return JsonSerializer.Serialize(node.Accept(this), _options);
         }
 
         public object Visit(ProgramNode node) => new
         {
             Type = "Program",
-            Body = node.Statements.Select(s => s.Accept(this))
+            Statements = node.Statements.Select(s => s.Accept(this))
         };
 
         public object Visit(ModuleNode node) => new
@@ -62,42 +60,79 @@ namespace Sage.Utilities
         public object Visit(VariableDeclarationNode node) => new
         {
             Type = "VariableDeclaration",
+            IsConstant = node.IsConstant,
             Name = node.Name,
             DataType = node.Type,
             Initializer = node.Initializer.Accept(this)
         };
 
+        public object Visit(AssignmentNode node) => new
+        {
+            Type = "Assignment",
+            Variable = node.Name,
+            Value = node.Expression.Accept(this)
+        };
+
+        public object Visit(IfNode node) => new
+        {
+            Type = "If",
+            Condition = node.Condition.Accept(this),
+            Then = node.ThenBranch.Accept(this),
+            Else = node.ElseBranch?.Accept(this)
+        };
+
+        public object Visit(WhileNode node) => new
+        {
+            Type = "While",
+            Condition = node.Condition.Accept(this),
+            Body = node.Body.Accept(this)
+        };
+
+        public object Visit(ForNode node) => new
+        {
+            Type = "For",
+            Initializer = node.Initializer?.Accept(this),
+            Condition = node.Condition?.Accept(this),
+            Increment = node.Increment?.Accept(this),
+            Body = node.Body.Accept(this)
+        };
+
         public object Visit(ReturnNode node) => new
         {
             Type = "Return",
-            Expression = node.Expression.Accept(this)
+            Value = node.Expression.Accept(this)
         };
 
-        public object Visit(ExpressionStatementNode node) => new
-        {
-            Type = "ExpressionStatement",
-            Expression = node.Expression.Accept(this)
-        };
-
-        public object Visit(UseNode node) => new
-        {
-            Type = "Use",
-            Module = node.Module
-        };
+        public object Visit(ExpressionStatementNode node) => node.Expression.Accept(this);
 
         public object Visit(BinaryExpressionNode node) => new
         {
             Type = "BinaryExpression",
-            Operator = node.Operator,
             Left = node.Left.Accept(this),
+            Operator = node.Operator,
             Right = node.Right.Accept(this)
+        };
+
+        public object Visit(UnaryExpressionNode node) => new
+        {
+            Type = "UnaryExpression",
+            Operator = node.Operator,
+            Operand = node.Operand.Accept(this),
+            IsPostfix = node.IsPostfix
         };
 
         public object Visit(CastExpressionNode node) => new
         {
             Type = "Cast",
             TargetType = node.TargetType,
-            Value = node.Expression.Accept(this)
+            Expression = node.Expression.Accept(this)
+        };
+
+        public object Visit(FunctionCallNode node) => new
+        {
+            Type = "FunctionCall",
+            FunctionName = node.Name,
+            Arguments = node.Arguments.Select(a => a.Accept(this))
         };
 
         public object Visit(LiteralNode node) => new
@@ -113,17 +148,8 @@ namespace Sage.Utilities
             Name = node.Name
         };
 
-        public object Visit(FunctionCallNode node) => new
-        {
-            Type = "FunctionCall",
-            Name = node.Name,
-            Arguments = node.Arguments.Select(a => a.Accept(this))
-        };
+        public object Visit(UseNode node) => new { Type = "Use", Module = node.Module };
 
-        public object Visit(InterpolatedStringNode node) => new
-        {
-            Type = "InterpolatedString",
-            Parts = node.Parts.Select(p => p.Accept(this))
-        };
+        public object Visit(InterpolatedStringNode node) => new { Type = "InterpolatedString" };
     }
 }

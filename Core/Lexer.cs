@@ -1,101 +1,92 @@
 ﻿using Sage.Enums;
 using Sage.Interfaces;
+using Sage.Utilities;
 
 namespace Sage.Core
 {
     /// <summary>
-    /// Performs lexical analysis on Sage source code, converting raw text into a sequence of tokens.
+    /// Performs lexical analysis on Sage source code. 
+    /// Converts raw text into a sequence of tokens using a single-pass scanner.
     /// </summary>
+    /// <param name="text">The raw source code to be tokenized.</param>
     public class Lexer(string text) : ILexer
     {
         private readonly string _text = text;
-        private int _pos;
+        private int _pos = 0;
         private int _line = 1;
         private int _col = 1;
 
         /// <summary>
-        /// Gets the character at the current position.
+        /// Gets the character at the current scanner position.
         /// </summary>
         private char Current => _pos < _text.Length ? _text[_pos] : '\0';
 
         /// <summary>
-        /// Gets the character immediately following the current position.
+        /// Peeks at the character immediately following the current position.
         /// </summary>
         private char Lookahead => _pos + 1 < _text.Length ? _text[_pos + 1] : '\0';
 
         /// <summary>
-        /// Mapping of Sage keywords and primitive types to their respective token types.
+        /// Internal map of keywords and built-in types to their respective token types.
         /// </summary>
         private static readonly Dictionary<string, TokenType> Keywords = new()
         {
-            { "use", TokenType.Keyword_Use },
-            { "func", TokenType.Keyword_Func },
-            { "return", TokenType.Keyword_Return },
-            { "module", TokenType.Keyword_Module },
-            { "var", TokenType.Keyword_Var },
-            { "const", TokenType.Keyword_Const },
-            { "as", TokenType.Keyword_As },
+            { "use", TokenType.Keyword_Use }, { "func", TokenType.Keyword_Func },
+            { "return", TokenType.Keyword_Return }, { "module", TokenType.Keyword_Module },
+            { "var", TokenType.Keyword_Var }, { "const", TokenType.Keyword_Const },
+            { "as", TokenType.Keyword_As }, { "true", TokenType.Keyword_True },
+            { "false", TokenType.Keyword_False }, { "if", TokenType.Keyword_If },
+            { "else", TokenType.Keyword_Else }, { "while", TokenType.Keyword_While },
+            { "for", TokenType.Keyword_For },
 
-            { "i8", TokenType.Type_I8 },
-            { "u8", TokenType.Type_U8 },
-            { "i16", TokenType.Type_I16 },
-            { "u16", TokenType.Type_U16 },
-            { "i32", TokenType.Type_I32 },
-            { "u32", TokenType.Type_U32 },
-            { "i64", TokenType.Type_I64 },
-            { "u64", TokenType.Type_U64 },
-
-            { "f32", TokenType.Type_F32 },
-            { "f64", TokenType.Type_F64 },
-
-            { "b8", TokenType.Type_B8 },
-
-            { "c8", TokenType.Type_C8 },
-            { "c16", TokenType.Type_C16 },
-            { "c32", TokenType.Type_C32 },
-
-            { "str", TokenType.Type_Str },
-            { "none", TokenType.Type_Void },
+            // Fixed-width types
+            { "i8", TokenType.Type_I8 }, { "u8", TokenType.Type_U8 },
+            { "i16", TokenType.Type_I16 }, { "u16", TokenType.Type_U16 },
+            { "i32", TokenType.Type_I32 }, { "u32", TokenType.Type_U32 },
+            { "i64", TokenType.Type_I64 }, { "u64", TokenType.Type_U64 },
+            { "f32", TokenType.Type_F32 }, { "f64", TokenType.Type_F64 },
+            { "b8", TokenType.Type_B8 }, { "str", TokenType.Type_Str },
+            { "none", TokenType.Type_Void }
         };
 
         /// <summary>
-        /// Iterates through the source text to generate a list of valid tokens.
+        /// Scans the entire source text and returns a list of valid tokens.
         /// </summary>
-        /// <returns>A list of identified tokens ending with an EndOfFile token.</returns>
+        /// <returns>A list of Token objects, ending with EndOfFile.</returns>
         public List<Token> Tokenize()
         {
             var tokens = new List<Token>();
 
             while (_pos < _text.Length)
             {
-                char current = Current;
+                char c = Current;
 
-                if (char.IsWhiteSpace(current))
+                if (char.IsWhiteSpace(c))
                 {
                     Advance();
                     continue;
                 }
 
-                if (char.IsLetter(current) || current == '_')
+                if (char.IsLetter(c) || c == '_')
                 {
                     tokens.Add(LexIdentifier());
+                    continue;
                 }
-                else if (char.IsDigit(current))
+
+                if (char.IsDigit(c))
                 {
                     tokens.Add(LexNumber());
+                    continue;
                 }
-                else if (current == '"')
+
+                if (c == '"')
                 {
                     tokens.Add(LexString());
+                    continue;
                 }
-                else
-                {
-                    Token? symbol = LexSymbol();
-                    if (symbol != null)
-                    {
-                        tokens.Add(symbol);
-                    }
-                }
+
+                Token? symbol = LexSymbol();
+                if (symbol != null) tokens.Add(symbol);
             }
 
             tokens.Add(new Token(TokenType.EndOfFile, "\0", _line, _col));
@@ -103,7 +94,7 @@ namespace Sage.Core
         }
 
         /// <summary>
-        /// Moves the pointer forward and updates line/column trackers.
+        /// Advances the scanner position by one and updates line/column trackers.
         /// </summary>
         private void Advance()
         {
@@ -112,19 +103,23 @@ namespace Sage.Core
                 if (_text[_pos] == '\n')
                 {
                     _line++;
-                    _col = 0;
+                    _col = 1;
+                }
+                else
+                {
+                    _col++;
                 }
                 _pos++;
-                _col++;
             }
         }
 
         /// <summary>
-        /// Reads an identifier or maps it to a keyword if applicable.
+        /// Reads an alphanumeric identifier and checks if it matches a reserved keyword.
         /// </summary>
+        /// <returns>A token of type Identifier or Keyword.</returns>
         private Token LexIdentifier()
         {
-            int start = _pos;
+            int startPos = _pos;
             int startCol = _col;
 
             while (_pos < _text.Length && (char.IsLetterOrDigit(Current) || Current == '_'))
@@ -132,100 +127,87 @@ namespace Sage.Core
                 Advance();
             }
 
-            string txt = _text[start.._pos];
-            var type = Keywords.GetValueOrDefault(txt, TokenType.Identifier);
+            string value = _text[startPos.._pos];
+            var type = Keywords.GetValueOrDefault(value, TokenType.Identifier);
 
-            return new Token(type, txt, _line, startCol);
+            return new Token(type, value, _line, startCol);
         }
 
         /// <summary>
-        /// Reads a numeric literal, supporting optional floating-point notation.
+        /// Scans a numeric literal, supporting both integers and floating-point numbers.
         /// </summary>
+        /// <returns>A token of type Integer or Float.</returns>
         private Token LexNumber()
         {
-            int start = _pos;
+            int startPos = _pos;
             int startCol = _col;
 
-            while (_pos < _text.Length && char.IsDigit(Current))
-            {
-                Advance();
-            }
+            while (_pos < _text.Length && char.IsDigit(Current)) Advance();
 
-            // check for floating point
+            // Floating point check
             if (Current == '.' && char.IsDigit(Lookahead))
             {
                 Advance(); // Consume '.'
-                while (_pos < _text.Length && char.IsDigit(Current))
-                {
-                    Advance();
-                }
-
-                string floatValue = _text[start.._pos];
-                return new Token(TokenType.Float, floatValue, _line, startCol);
+                while (_pos < _text.Length && char.IsDigit(Current)) Advance();
+                return new Token(TokenType.Float, _text[startPos.._pos], _line, startCol);
             }
 
-            string intValue = _text[start.._pos];
-            return new Token(TokenType.Integer, intValue, _line, startCol);
+            return new Token(TokenType.Integer, _text[startPos.._pos], _line, startCol);
         }
 
         /// <summary>
-        /// Reads a string literal enclosed in double quotes.
+        /// Scans a string literal enclosed in double quotes.
         /// </summary>
+        /// <returns>A token containing the string content without quotes.</returns>
         private Token LexString()
         {
-            int start = _pos;
+            int startPos = _pos;
             int startCol = _col;
 
-            Advance(); // Skip opening quote
+            Advance(); // Skip opening "
+            while (_pos < _text.Length && Current != '"') Advance();
+            Advance(); // Skip closing "
 
-            while (_pos < _text.Length && Current != '"')
-            {
-                Advance();
-            }
-
-            Advance(); // Skip closing quote
-
-            string val = _text.Substring(start + 1, (_pos - start) - 2);
-            return new Token(TokenType.String, val, _line, startCol);
+            string value = _text[(startPos + 1)..(_pos - 1)];
+            return new Token(TokenType.String, value, _line, startCol);
         }
 
         /// <summary>
-        /// Handles symbols, multi-character operators, and skips comments.
+        /// Handles symbols, multi-character operators, and comments.
         /// </summary>
-        /// <returns>A token if the sequence represents a symbol; null if it is a comment.</returns>
+        /// <returns>A Token object, or null if a comment was skipped.</returns>
         private Token? LexSymbol()
         {
             char c = Current;
             char next = Lookahead;
+            int startCol = _col;
 
-            // Handle line comments
+            // Handle Comments (//)
             if (c == '/' && next == '/')
             {
-                while (_pos < _text.Length && Current != '\n')
-                {
-                    Advance();
-                }
+                while (_pos < _text.Length && Current != '\n') Advance();
                 return null;
             }
 
-            // Handle multi-character operators
-            if (c == ':' && next == ':')
-            {
-                int startCol = _col;
-                Advance();
-                Advance();
-                return new Token(TokenType.DoubleColon, "::", _line, startCol);
-            }
+            // Multi-character Operators
+            if (c == ':' && next == ':') { Advance(); Advance(); return new Token(TokenType.DoubleColon, "::", _line, startCol); }
+            if (c == '=' && next == '=') { Advance(); Advance(); return new Token(TokenType.EqualEqual, "==", _line, startCol); }
+            if (c == '!' && next == '=') { Advance(); Advance(); return new Token(TokenType.NotEqual, "!=", _line, startCol); }
+            if (c == '<' && next == '=') { Advance(); Advance(); return new Token(TokenType.LessEqual, "<=", _line, startCol); }
+            if (c == '>' && next == '=') { Advance(); Advance(); return new Token(TokenType.GreaterEqual, ">=", _line, startCol); }
+            if (c == '&' && next == '&') { Advance(); Advance(); return new Token(TokenType.AmpersandAmpersand, "&&", _line, startCol); }
+            if (c == '|' && next == '|') { Advance(); Advance(); return new Token(TokenType.PipePipe, "||", _line, startCol); }
+            if (c == '+' && next == '+') { Advance(); Advance(); return new Token(TokenType.PlusPlus, "++", _line, startCol); }
 
-            int tokenCol = _col;
+            // Single-character Operators
             Advance();
-
             TokenType type = c switch
             {
                 '+' => TokenType.Plus,
                 '-' => TokenType.Minus,
                 '*' => TokenType.Asterisk,
                 '/' => TokenType.Slash,
+                '%' => TokenType.Percent,
                 '=' => TokenType.Equals,
                 '(' => TokenType.OpenParen,
                 ')' => TokenType.CloseParen,
@@ -234,15 +216,18 @@ namespace Sage.Core
                 ';' => TokenType.Semicolon,
                 ',' => TokenType.Comma,
                 ':' => TokenType.Colon,
+                '<' => TokenType.Less,
+                '>' => TokenType.Greater,
+                '!' => TokenType.Bang,
                 _ => TokenType.Unknown
             };
 
             if (type == TokenType.Unknown)
             {
-                Console.WriteLine($"[LEXER WARNING] Unexpected character '{c}' at {_line}:{tokenCol}");
+                CompilerLogger.LogError(new Token(type, c.ToString(), _line, startCol), "S000", $"Unexpected character '{c}'.");
             }
 
-            return new Token(type, c.ToString(), _line, tokenCol);
+            return new Token(type, c.ToString(), _line, startCol);
         }
     }
 }
