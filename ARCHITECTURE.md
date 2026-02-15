@@ -1,4 +1,4 @@
-﻿# 🌿 Sage Programming Language: Technical Documentation
+﻿# Sage Programming Language: Technical Documentation
 
 **Sage** is a compiled (transpiled) programming language that utilizes C as its low-level target. Its architecture follows the classic compiler "pipeline" model, prioritizing modularity through the **Visitor Design Pattern**.
 
