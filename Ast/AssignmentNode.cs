@@ -21,6 +21,12 @@ namespace Sage.Ast
         public AstNode Expression { get; } = expression;
 
         /// <summary>
+        /// Gets or sets the resolved type of the variable. 
+        /// Populated during Semantic Analysis to aid Code Generation (e.g., for casting).
+        /// </summary>
+        public string? VariableType { get; set; }
+
+        /// <summary>
         /// Dispatches the visitor to the appropriate visit method for this node.
         /// </summary>
         /// <typeparam name="T">The return type of the visitor.</typeparam>

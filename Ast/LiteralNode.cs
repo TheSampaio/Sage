@@ -16,9 +16,10 @@ namespace Sage.Ast
         public object Value { get; } = value;
 
         /// <summary>
-        /// Gets the Sage data type name for this literal.
+        /// Gets or sets the Sage type name.
+        /// Mutable to allow the Semantic Analyzer to refine the type (e.g., i32 -> f32).
         /// </summary>
-        public string TypeName { get; } = typeName;
+        public string TypeName { get; set; } = typeName;
 
         /// <summary>
         /// Dispatches the visitor to the appropriate visit method for this literal.
