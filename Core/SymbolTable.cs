@@ -22,12 +22,12 @@ namespace Sage.Core
         }
 
         /// <summary>
-        /// Pushes a new scope level onto the stack.
+        /// Pushes a new scope level onto the stack (e.g., entering a function or block).
         /// </summary>
         public void EnterScope() => _scopes.Push(new Dictionary<string, string>());
 
         /// <summary>
-        /// Removes the current scope level from the stack.
+        /// Removes the current scope level from the stack (e.g., exiting a block).
         /// Prevents the removal of the final global scope level.
         /// </summary>
         public void ExitScope()
@@ -47,6 +47,17 @@ namespace Sage.Core
             {
                 _scopes.Peek()[name] = type;
             }
+        }
+
+        /// <summary>
+        /// Checks if a variable is already declared *specifically* in the immediate current scope.
+        /// This is crucial for detecting duplicate declarations like 'var x... var x...'.
+        /// </summary>
+        /// <param name="name">The identifier name to check.</param>
+        /// <returns>True if the identifier exists in the top-most scope; otherwise, false.</returns>
+        public bool IsDefinedInCurrentScope(string name)
+        {
+            return _scopes.Count > 0 && _scopes.Peek().ContainsKey(name);
         }
 
         /// <summary>

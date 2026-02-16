@@ -5,6 +5,10 @@ using Sage.Interfaces;
 
 namespace Sage.Core
 {
+    /// <summary>
+    /// Traverses the AST and emits optimized C11 code.
+    /// Handles ABI compliance, formatting, and type casting.
+    /// </summary>
     public class CodeGenerator : ICodeGenerator, IAstVisitor<string>
     {
         private int _indent = 0;
@@ -109,12 +113,29 @@ namespace Sage.Core
         public string Visit(VariableDeclarationNode node)
         {
             string prefix = node.IsConstant ? "const " : "";
-            // Removed extra indentation call here to prevent drift
-            return $"{Indent}{prefix}{ConvertType(node.Type)} {node.Name} = {node.Initializer.Accept(this)};\n";
+            string initCode = node.Initializer.Accept(this);
+
+            // Auto-cast injection for f32 to prevent GCC precision warnings
+            if (node.Type == "f32")
+            {
+                initCode = $"(f32)({initCode})";
+            }
+
+            return $"{Indent}{prefix}{ConvertType(node.Type)} {node.Name} = {initCode};\n";
         }
 
-        // Assignment doesn't need Indent/Semicolon because it's usually inside an ExpressionStatement
-        public string Visit(AssignmentNode node) => $"{node.Name} = {node.Expression.Accept(this)}";
+        public string Visit(AssignmentNode node)
+        {
+            string expressionCode = node.Expression.Accept(this);
+
+            // Auto-cast injection based on Semantic Decoration
+            if (node.VariableType == "f32")
+            {
+                return $"{Indent}{node.Name} = (f32)({expressionCode});\n";
+            }
+
+            return $"{Indent}{node.Name} = {expressionCode};\n";
+        }
 
         public string Visit(IfNode node)
         {
@@ -184,14 +205,26 @@ namespace Sage.Core
         {
             if (node.TypeName == "string") return $"\"{node.Value}\"";
             if (node.TypeName == "b8") return (bool)node.Value ? "true" : "false";
-            return node.Value.ToString() ?? "";
+
+            // Float suffix handling for f32
+            if (node.TypeName == "f32")
+            {
+                string val = node.Value.ToString() ?? "0.0";
+                return val.Contains('.') ? $"{val}f" : $"{val}.0f";
+            }
+
+            // Double handling for f64
+            if (node.TypeName == "f64")
+            {
+                string val = node.Value.ToString() ?? "0.0";
+                return val.Contains('.') ? val : $"{val}.0";
+            }
+
+            return node.Value.ToString() ?? "0";
         }
 
         public string Visit(IdentifierNode node) => node.Name.Replace("::", "_");
 
-        /// <summary>
-        /// Fixed: Generates the printf call without internal indentation or semicolons.
-        /// </summary>
         public string Visit(FunctionCallNode node)
         {
             if (node.Name == "console::print_line" && node.Arguments[0] is LiteralNode lit)
@@ -206,12 +239,12 @@ namespace Sage.Core
                     if (i % 2 == 0) fmt.Append(parts[i]);
                     else
                     {
-                        fmt.Append("%d");
+                        // Use %g as a safe default for generic number printing in C
+                        fmt.Append("%g");
                         args.Add(parts[i].Replace("::", "_"));
                     }
                 }
                 string argsStr = args.Count > 0 ? ", " + string.Join(", ", args) : "";
-                // Return just the C expression
                 return $"printf(\"{fmt}\\n\"{argsStr})";
             }
 
@@ -220,17 +253,11 @@ namespace Sage.Core
         }
 
         public string Visit(ReturnNode node) => $"{Indent}return {node.Expression.Accept(this)};\n";
-
-        /// <summary>
-        /// This is the primary driver for expression formatting in the C file.
-        /// It provides the indentation and the terminal semicolon.
-        /// </summary>
         public string Visit(ExpressionStatementNode node) => $"{Indent}{node.Expression.Accept(this)};\n";
-
         public string Visit(UseNode node) => "";
         public string Visit(InterpolatedStringNode node) => "";
         public string Visit(CastExpressionNode node) => $"(({ConvertType(node.TargetType)}){node.Expression.Accept(this)})";
 
-        private string ConvertType(string t) => t == "void" ? "none" : t;
+        private static string ConvertType(string t) => t == "void" ? "none" : t;
     }
 }
