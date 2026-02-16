@@ -1,22 +1,6 @@
-// use console;
-
-// func main(): none
-// {
-//     var x: f32 = 50;
-//     var y: f64 = x;
-//     var result: f32 = x + y;
-
-//     console::print_line("Sum: {x} + {y} = {result}");
-// }
-
 use console;
 
 func main(): none
 {
-    var x: f64 = 50.25;
-    var y: f32 = x as f32;
-    var result: f32 = x as f32 + y;
-
-    console::print_line("Sum: {x} + {y} = {result}");
+    console::print_line("Hello World!");
 }
-
