@@ -1,6 +1,11 @@
+// main.sg
 use console;
+use math;
 
 func main(): none
 {
-    console::print_line("Hello World!");
+    var x: f32 = 24.5;
+    var y: f32 = 24.5;
+
+    console::print_line("Sum: {x} + {y} = {math::sum(x, y)}");
 }
