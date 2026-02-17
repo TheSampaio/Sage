@@ -1,0 +1,60 @@
+// window.sg
+
+module window
+{
+    // Aqui eu pego um tipo em C e dou um apelido para ele. Não é permitido o uso direto de um tipo C
+    extern struct glfwWindow as id;
+
+    // Aqui eu pego funções em C e as implemento nos módulos Sage. Não é permitido o uso direto de um método C
+    extern func glfwCreateWindow(w: i32, h: i32, t: str): id*;
+    extern func glfwDestroyWindow(window: id*): none;
+
+    // Palavra chave para struct
+    struct descriptor
+    {
+        // Sempre inicializar variaveis na sage
+        width: i32 = 0;
+        height: i32 = 0;
+        title: str = "";
+    }
+
+    func create(desc: descriptor): id*
+    {
+        // Por tras dos panos isso faz uma alocação na heap usando malloc do C
+        return glfwCreateWindow(desc.width, desc.height, desc.title);
+    }
+
+    func destroy(window: id*): none
+    {
+        // Por tras dos panos isso faz uma liberação na heap usando free do C
+        glfwDestroyWindow(window);
+    }
+}
+
+// main.sg
+use window;
+
+func main()
+{
+    // Alloc region (arena)
+    alloc app
+    {
+        // Define um descritor (Unica maneira possível de inicializar structs)
+        var window_desc: window::descriptor = {
+            width = 800,
+            height = 800,
+            title = "Window"
+        };
+
+        // Cria uma janela (Heap allocation) usando o descritor
+        var window_handler: window::id* = window::create(window_desc);
+        // PS: "window_handler" vira o dono de "window::id*", ao acabar o bloco "alloc app" ele será
+        // deletado automaticamente caso o programador esqueça de chamar "window::destroy(window_handler)"
+
+        ...
+
+        // É chamado como convensão, mas nesse caso, se o programador tivesse esquecido de chamar o
+        // destroy "window_handler" seria deletado pelo "alloc app" ao final do bloco
+        window::destroy(window_handler);
+    }
+}

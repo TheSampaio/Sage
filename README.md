@@ -60,18 +60,19 @@ func main(): none
 
 ## Project Status
 
-The project is currently in **v0.3.0 (Alpha)**.
+The project is currently in **v0.4.0 (Alpha)**.
 
-* [x] **Variable Declarations** (`var`) & **Constants** (`const`)
-* [x] **Control Flow** (`if`, `else`, `while`, `for`)
-* [x] **FFI / External Functions** (`extern`)
-* [x] **Header Tree-Shaking** (Optimized C output)
-* [x] **Logical & Comparison Operators** (`&&`, `||`, `!`, `==`, etc.)
-* [x] **Modules & Namespaces** (`::`)
-* [x] **String Interpolation** (compiled to `printf`)
-* [x] **Native Compilation** (GCC Integration)
-* [ ] **Arrays and Pointers** (Next Milestone)
-* [ ] **Structs and Custom Types** (Planned)
+- [x] **CLI & Project System** (`new`, `build`, `run`, `--version`)
+- [x] **Variable Declarations** (`var`) & **Constants** (`const`)
+- [x] **Control Flow** (`if`, `else`, `while`, `for`)
+- [x] **FFI / External Functions** (`extern`)
+- [x] **Header Tree-Shaking** (Optimized C output)
+- [x] **Logical & Comparison Operators** (`&&`, `||`, `!`, `==`, etc.)
+- [x] **Modules & Namespaces** (`::`)
+- [x] **String Interpolation** (compiled to `printf`)
+- [x] **Native Compilation** (GCC Integration)
+- [ ] **Arrays and Pointers** (Next Milestone)
+- [ ] **Structs and Custom Types** (Planned)
 
 ## License
 

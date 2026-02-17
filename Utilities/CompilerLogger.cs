@@ -1,105 +1,111 @@
 ﻿using System.Diagnostics;
 using Sage.Core;
+using Sage.Ast;
 using Sage.Enums;
 
 namespace Sage.Utilities
 {
     /// <summary>
     /// Provides standardized, color-coded console logging for the Sage compiler pipeline.
-    /// Supports semantic error formatting, progress tracking, and debug tracing.
+    /// Handles Conditional compilation for Debug/Release output modes.
     /// </summary>
     public static class CompilerLogger
     {
         /// <summary>
         /// Logs a major milestone in the compilation process to the console.
         /// </summary>
-        /// <param name="message">The progress message to display.</param>
         public static void LogStep(string message) => Console.WriteLine(message);
 
         /// <summary>
         /// Logs general information regarding the current compilation context.
+        /// Prefixed with [INFO] in Debug mode.
         /// </summary>
-        /// <param name="message">The informational message to display.</param>
-        public static void LogInfo(string message) => Console.WriteLine($"[INFO] {message}");
+        public static void LogInfo(string message)
+        {
+#if DEBUG
+            Console.WriteLine($"[INFO] {message}");
+#else
+            Console.WriteLine(message);
+#endif
+        }
 
         /// <summary>
-        /// Logs a non-fatal warning in yellow. Warnings do not halt the compilation process.
+        /// Logs a non-fatal warning in yellow.
         /// </summary>
-        /// <param name="message">The warning message to display.</param>
         public static void LogWarning(string message)
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
+#if DEBUG
             Console.WriteLine($"[WARNING] {message}");
+#else
+            Console.WriteLine(message);
+#endif
             Console.ResetColor();
         }
 
         /// <summary>
-        /// Logs a specific code error linked to a source token. 
-        /// Formatted as 'file(line,col): error CODE: Message' for IDE compatibility.
+        /// Logs a specific code error linked to a source token.
+        /// Formatted as 'file(line,col): error CODE: Message' for IDE integration.
         /// </summary>
-        /// <param name="token">The token where the error was detected.</param>
-        /// <param name="code">The unique Sage error code (e.g., S105).</param>
-        /// <param name="message">A descriptive error message.</param>
         public static void LogError(Token token, string code, string message)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            // Standard format allows IDEs like VS Code to link directly to the source file
             Console.WriteLine($"main.sg({token.Line},{token.Column}): error {code}: {message}");
             Console.ResetColor();
         }
 
         /// <summary>
-        /// Logs a generic system error, such as IO failures or missing environment tools.
+        /// Logs a generic system error (e.g., file not found).
         /// </summary>
-        /// <param name="message">The system error message to display.</param>
         public static void LogError(string message)
         {
             Console.ForegroundColor = ConsoleColor.Red;
+#if DEBUG
             Console.WriteLine($"[SYS ERROR] {message}");
+#else
+            Console.WriteLine(message);
+#endif
             Console.ResetColor();
         }
 
         /// <summary>
         /// Logs a successful operation or phase completion in green.
         /// </summary>
-        /// <param name="message">The success message to display.</param>
         public static void LogSuccess(string message)
         {
             Console.ForegroundColor = ConsoleColor.Green;
+#if DEBUG
             Console.WriteLine($"[SUCCESS] {message}");
+#else
+            Console.WriteLine(message);
+#endif
             Console.ResetColor();
         }
 
         /// <summary>
-        /// Handles and logs critical failures, supporting both Sage-specific and native exceptions.
-        /// Ensures correct line/column reporting even if a token is not available.
+        /// Handles and logs critical failures, printing stack traces only in Debug mode.
         /// </summary>
-        /// <param name="ex">The caught exception to be logged.</param>
         public static void LogFatal(Exception ex)
         {
             Console.ForegroundColor = ConsoleColor.Red;
 
             if (ex is CompilerException sce)
             {
-                if (sce.OffendingToken == null)
-                {
-                    // Fallback: Create a virtual token to maintain standard error formatting
-                    var tempToken = new Token(TokenType.Unknown, "", sce.Line, sce.Column);
-                    LogError(tempToken, sce.ErrorCode, sce.Message);
-                }
-                else
-                {
-                    LogError(sce.OffendingToken, sce.ErrorCode, sce.Message);
-                }
+                var targetToken = sce.OffendingToken ?? new Token(TokenType.Unknown, "", sce.Line, sce.Column);
+                LogError(targetToken, sce.ErrorCode, sce.Message);
             }
             else
             {
+#if DEBUG
                 Console.WriteLine($"\n[FATAL ERROR] {ex.Message}");
                 if (ex.StackTrace != null)
                 {
                     Console.ForegroundColor = ConsoleColor.DarkGray;
                     Console.WriteLine(ex.StackTrace);
                 }
+#else
+                Console.WriteLine($"\n{ex.Message}");
+#endif
             }
 
             Console.ResetColor();
@@ -107,9 +113,8 @@ namespace Sage.Utilities
 
         /// <summary>
         /// Logs internal debug information in dark gray. 
-        /// This method is stripped from production builds via the Conditional attribute.
+        /// Entirely stripped from Release builds via [Conditional].
         /// </summary>
-        /// <param name="message">The debug message to display.</param>
         [Conditional("DEBUG")]
         public static void LogDebug(string message)
         {

@@ -2,195 +2,240 @@ using Sage.Ast;
 using Sage.Core;
 using Sage.Utilities;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 
 namespace Sage
 {
     /// <summary>
-    /// The main entry point for the Sage Compiler. 
-    /// Orchestrates the lexical, syntax, and semantic analysis phases, 
-    /// and manages the C transpilation and native linking toolchain.
+    /// The entry point for the Sage Compiler CLI.
+    /// Handles command-line arguments and orchestrates the compilation pipeline.
     /// </summary>
     internal static class Program
     {
-#pragma warning disable
-        // --- Windows ANSI Support via P/Invoke ---
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern IntPtr GetStdHandle(int nStdHandle);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool GetConsoleMode(IntPtr hConsoleHandle, out uint lpMode);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool SetConsoleMode(IntPtr hConsoleHandle, uint dwMode);
-#pragma warning enable 
-
-        /// <summary>
-        /// Main execution loop. Resolves configuration, builds the module dependency graph, 
-        /// and executes the two-pass compilation pipeline.
-        /// </summary>
-        /// <param name="args">Command-line arguments provided by the user.</param>
         private static void Main(string[] args)
         {
-            EnableAnsiConsole();
+            ConsoleHelper.EnableAnsiSupport();
 
             try
             {
-                var config = ResolveConfiguration(args);
+                if (HandleCliCommands(args)) return;
 
-                // --- 1. Intelligent Directory Resolution ---
-                string exeDir = AppContext.BaseDirectory;
-                string sourceDir = Path.GetDirectoryName(config.InputPath)!;
-                string projectRoot = sourceDir;
-
-                // Locate Standard Library (std) relative to the compiler or project root
-                string stdDir = Path.GetFullPath(Path.Combine(exeDir, "..", "std"));
-
-                if (!Directory.Exists(stdDir))
-                {
-                    // Fallback logic for development environments where 'src' folder is used
-                    if (Path.GetFileName(sourceDir).Equals("src", StringComparison.OrdinalIgnoreCase))
-                    {
-                        projectRoot = Directory.GetParent(sourceDir)?.FullName ?? sourceDir;
-                    }
-                    stdDir = Path.Combine(projectRoot, "std");
-                }
-
-                string objDir = Path.Combine(projectRoot, "obj");
-                string binDir = Path.Combine(projectRoot, "bin");
-
-                // Ensure build artifacts directories exist
-                Directory.CreateDirectory(objDir);
-                Directory.CreateDirectory(binDir);
-
-                if (config.IsDebugMode)
-                {
-                    CompilerLogger.LogInfo($"[DEBUG] Compiler Location: {exeDir}");
-                    CompilerLogger.LogInfo($"[DEBUG] STL Path: {stdDir}");
-                    CompilerLogger.LogInfo($"[DEBUG] Compiling project: {Path.GetFileName(projectRoot)}");
-                }
-
-                // --- 2. Build Pipeline (Two-Pass) ---
-                var compilationQueue = new Queue<string>();
-                var parsedModules = new Dictionary<string, ProgramNode>();
-                var generatedCFiles = new List<string>();
-
-                var symbolTable = new SymbolTable();
-                var analyzer = new SemanticAnalyzer(symbolTable);
-
-                // Start with the main entry file
-                compilationQueue.Enqueue(config.InputPath);
-
-                // Pass 1: Parsing and Symbol Registration
-                while (compilationQueue.Count > 0)
-                {
-                    string currentPath = compilationQueue.Dequeue();
-                    string moduleName = Path.GetFileNameWithoutExtension(currentPath);
-
-                    if (parsedModules.ContainsKey(moduleName)) continue;
-
-                    if (config.IsDebugMode)
-                        Console.WriteLine($"\n--- [MODULE] Processing: {moduleName} ---");
-
-                    string code = File.ReadAllText(currentPath);
-                    var tokens = new Lexer(code).Tokenize();
-
-                    if (config.IsDebugMode)
-                    {
-                        CompilerLogger.LogStep("1. Tokenizing...");
-                        SaveDebugOutput(Path.Combine(objDir, moduleName + ".tok"), TokenPrinter.Print(tokens));
-                        CompilerLogger.LogStep("2. Parsing...");
-                    }
-
-                    var ast = new Parser(tokens, Path.GetFileName(currentPath)).Parse();
-
-                    // Register function signatures globally before deep analysis
-                    analyzer.RegisterModuleSymbols(ast);
-                    parsedModules.Add(moduleName, ast);
-
-                    // Queue dependencies found via 'use' keywords
-                    foreach (var use in ast.Statements.OfType<UseNode>())
-                    {
-                        string depPath = Path.Combine(sourceDir, $"{use.Module}.sg");
-                        if (!File.Exists(depPath)) depPath = Path.Combine(stdDir, $"{use.Module}.sg");
-
-                        if (File.Exists(depPath)) compilationQueue.Enqueue(depPath);
-                    }
-                }
-
-                // Pass 2: Semantic Analysis and Transpilation
-                foreach (var entry in parsedModules)
-                {
-                    string moduleName = entry.Key;
-                    ProgramNode ast = entry.Value;
-
-                    if (config.IsDebugMode)
-                    {
-                        Console.WriteLine($"\n--- [MODULE] Finishing: {moduleName} ---");
-                        CompilerLogger.LogStep("3. Semantic Analysis...");
-                    }
-
-                    analyzer.Analyze(ast);
-
-                    if (config.IsDebugMode)
-                    {
-                        SaveDebugOutput(Path.Combine(objDir, moduleName + ".ast"), new AstPrinter().Print(ast));
-                        CompilerLogger.LogStep("4. Generating C Code...");
-                    }
-
-                    // Write generated C source and headers to the object directory
-                    File.WriteAllText(Path.Combine(objDir, moduleName + ".h"), new HeaderGenerator().Generate(ast));
-                    string cCode = new CodeGenerator().Generate(ast);
-                    File.WriteAllText(Path.Combine(objDir, moduleName + ".c"), cCode);
-
-                    generatedCFiles.Add(Path.Combine(objDir, $"{moduleName}.c"));
-
-                    if (config.IsDebugMode)
-                        CompilerLogger.LogSuccess($"Generated: {moduleName}.c/h");
-                }
-
-                // --- 4. Native Toolchain Integration ---
-                if (config.BuildNative)
-                {
-                    if (config.IsDebugMode)
-                    {
-                        Console.WriteLine();
-                        CompilerLogger.LogStep("Linking binaries...");
-                    }
-
-                    string exeName = Path.GetFileNameWithoutExtension(config.InputPath) + ".exe";
-                    string exePath = Path.Combine(binDir, exeName);
-
-                    RunNativeLinker(generatedCFiles, exePath, objDir, config);
-
-                    // Execute the resulting application
-                    if (config.IsDebugMode) RunApplicationDebug(exePath);
-                    else RunApplicationRelease(exePath);
-                }
+                // If no specific CLI command handled it, proceed to compilation
+                RunCompilationPipeline(args);
             }
             catch (Exception ex)
             {
-                // Global error handler for the compiler
                 CompilerLogger.LogFatal(ex);
             }
         }
 
         /// <summary>
-        /// Enables support for ANSI color codes in the Windows Console.
+        /// Handles meta-commands like --version or 'new'. 
+        /// Returns true if execution should stop here.
         /// </summary>
-        private static void EnableAnsiConsole()
+        private static bool HandleCliCommands(string[] args)
         {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            // 1. Version Command
+            if (args.Contains("--version") || args.Contains("--v"))
             {
-                var handle = GetStdHandle(-11); // STD_OUTPUT_HANDLE
-                if (GetConsoleMode(handle, out uint mode))
-                    SetConsoleMode(handle, mode | 0x0004); // ENABLE_VIRTUAL_TERMINAL_PROCESSING
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine("Sage Compiler v0.4.0 (Alpha)");
+                Console.WriteLine("  \"Knowledge is Power\"");
+                Console.ResetColor();
+                return true;
             }
+
+            // 2. New Project Command
+            if (args.Length >= 1 && args[0].Equals("new", StringComparison.OrdinalIgnoreCase))
+            {
+                if (args.Length < 2)
+                {
+                    CompilerLogger.LogError("Missing project name.");
+                    Console.WriteLine("\nUsage:\n  sage new <project_name>");
+                    return true;
+                }
+                ProjectInitializer.Initialize(args[1]);
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>
-        /// Invokes the GCC compiler to link the generated C files into a native executable.
+        /// Orchestrates the main compilation process: Setup -> Parse -> Analyze -> Link.
         /// </summary>
+        private static void RunCompilationPipeline(string[] args)
+        {
+            var config = ResolveConfiguration(args);
+            var env = SetupEnvironment(config);
+
+            if (config.IsDebugMode)
+            {
+                CompilerLogger.LogInfo($"Root: {env.ProjectRoot}");
+                CompilerLogger.LogInfo($"Entry: {config.InputPath}");
+                CompilerLogger.LogDebug($"Compiler Location: {env.ExeDir}");
+                CompilerLogger.LogDebug($"STL Path: {env.StdDir}");
+            }
+
+            // --- Compilation State ---
+            var compilationQueue = new Queue<string>();
+            var parsedModules = new Dictionary<string, ProgramNode>();
+            var generatedCFiles = new List<string>();
+
+            var symbolTable = new SymbolTable();
+            var analyzer = new SemanticAnalyzer(symbolTable);
+
+            compilationQueue.Enqueue(config.InputPath);
+
+            // --- Phase 1: Parsing & Discovery ---
+            PerformParsingPhase(compilationQueue, parsedModules, config, env, analyzer);
+
+            // --- Phase 2: Analysis & Code Generation ---
+            PerformGenerationPhase(parsedModules, generatedCFiles, config, env, analyzer);
+
+            // --- Phase 3: Native Linking ---
+            if (config.BuildNative)
+            {
+                PerformLinkingPhase(generatedCFiles, config, env);
+            }
+        }
+
+        private static void PerformParsingPhase(
+            Queue<string> queue,
+            Dictionary<string, ProgramNode> parsedModules,
+            CompilerConfig config,
+            CompilationEnvironment env,
+            SemanticAnalyzer analyzer)
+        {
+            while (queue.Count > 0)
+            {
+                string currentPath = queue.Dequeue();
+                string moduleName = Path.GetFileNameWithoutExtension(currentPath);
+
+                if (parsedModules.ContainsKey(moduleName)) continue;
+
+                if (config.IsDebugMode)
+                    Console.WriteLine($"\n--- [MODULE] Processing: {moduleName} ---");
+
+                string code = File.ReadAllText(currentPath);
+                var tokens = new Lexer(code).Tokenize();
+
+                if (config.IsDebugMode)
+                {
+                    CompilerLogger.LogStep("1. Tokenizing...");
+                    File.WriteAllText(Path.Combine(env.ObjDir, moduleName + ".tok"), TokenPrinter.Print(tokens));
+                    CompilerLogger.LogStep("2. Parsing...");
+                }
+
+                var ast = new Parser(tokens, Path.GetFileName(currentPath)).Parse();
+                analyzer.RegisterModuleSymbols(ast);
+                parsedModules.Add(moduleName, ast);
+
+                // Resolve Dependencies
+                foreach (var use in ast.Statements.OfType<UseNode>())
+                {
+                    string localDep = Path.Combine(env.SourceDir, $"{use.Module}.sg");
+                    string stdDep = Path.Combine(env.StdDir, $"{use.Module}.sg");
+
+                    if (File.Exists(localDep)) queue.Enqueue(localDep);
+                    else if (File.Exists(stdDep)) queue.Enqueue(stdDep);
+                }
+            }
+        }
+
+        private static void PerformGenerationPhase(
+            Dictionary<string, ProgramNode> modules,
+            List<string> generatedCFiles,
+            CompilerConfig config,
+            CompilationEnvironment env,
+            SemanticAnalyzer analyzer)
+        {
+            foreach (var entry in modules)
+            {
+                string moduleName = entry.Key;
+                ProgramNode ast = entry.Value;
+
+                if (config.IsDebugMode)
+                {
+                    Console.WriteLine($"\n--- [MODULE] Finishing: {moduleName} ---");
+                    CompilerLogger.LogStep("3. Semantic Analysis...");
+                }
+
+                analyzer.Analyze(ast);
+
+                if (config.IsDebugMode)
+                {
+                    File.WriteAllText(Path.Combine(env.ObjDir, moduleName + ".ast"), new AstPrinter().Print(ast));
+                    CompilerLogger.LogStep("4. Generating C Code...");
+                }
+
+                // Generate Headers and C Source
+                File.WriteAllText(Path.Combine(env.ObjDir, moduleName + ".h"), new HeaderGenerator().Generate(ast));
+
+                string cCode = new CodeGenerator().Generate(ast);
+                string cFilePath = Path.Combine(env.ObjDir, moduleName + ".c");
+                File.WriteAllText(cFilePath, cCode);
+
+                generatedCFiles.Add(cFilePath);
+
+                if (config.IsDebugMode)
+                    CompilerLogger.LogSuccess($"Generated: {moduleName}.c/h");
+            }
+        }
+
+        private static void PerformLinkingPhase(List<string> cFiles, CompilerConfig config, CompilationEnvironment env)
+        {
+            if (config.IsDebugMode)
+            {
+                Console.WriteLine();
+                CompilerLogger.LogStep("Linking binaries...");
+            }
+
+            string exeName = Path.GetFileNameWithoutExtension(config.InputPath);
+            if (exeName.Equals("main", StringComparison.OrdinalIgnoreCase))
+            {
+                exeName = new DirectoryInfo(env.ProjectRoot).Name;
+            }
+            exeName += ".exe";
+
+            string exePath = Path.Combine(env.BinDir, exeName);
+
+            RunNativeLinker(cFiles, exePath, env.ObjDir, config);
+
+            if (config.RunOnSuccess)
+            {
+                if (config.IsDebugMode) RunApplicationDebug(exePath);
+                else RunApplicationRelease(exePath);
+            }
+            else
+            {
+                Console.WriteLine();
+                CompilerLogger.LogSuccess($"Build complete: {exePath}");
+            }
+        }
+
+        private static CompilationEnvironment SetupEnvironment(CompilerConfig config)
+        {
+            string exeDir = AppContext.BaseDirectory;
+            string sourceDir = Path.GetDirectoryName(config.InputPath)!;
+            string projectRoot = sourceDir;
+
+            if (Path.GetFileName(sourceDir).Equals("src", StringComparison.OrdinalIgnoreCase))
+            {
+                projectRoot = Directory.GetParent(sourceDir)?.FullName ?? sourceDir;
+            }
+
+            string stdDir = Path.GetFullPath(Path.Combine(exeDir, "..", "std"));
+            if (!Directory.Exists(stdDir)) stdDir = Path.Combine(projectRoot, "std");
+
+            string objDir = Path.Combine(projectRoot, "obj");
+            string binDir = Path.Combine(projectRoot, "bin");
+
+            Directory.CreateDirectory(objDir);
+            Directory.CreateDirectory(binDir);
+
+            return new CompilationEnvironment(projectRoot, sourceDir, objDir, binDir, stdDir, exeDir);
+        }
+
         private static void RunNativeLinker(List<string> cFiles, string exeOutputPath, string includePath, CompilerConfig config)
         {
             if (config.IsDebugMode) CompilerLogger.LogInfo("Invoking native toolchain: gcc");
@@ -200,10 +245,9 @@ namespace Sage
 
             ProcessExecutor.Run("gcc", arguments);
 
-            if (config.IsDebugMode) Console.WriteLine($"Build succeeded -> {exeOutputPath}");
+            if (config.IsDebugMode) CompilerLogger.LogSuccess($"Build succeeded -> {exeOutputPath}");
         }
 
-        /// <summary>Executes the generated binary and displays exit codes and debug separators.</summary>
         private static void RunApplicationDebug(string exePath)
         {
             CompilerLogger.LogStep("Running Application...");
@@ -221,7 +265,6 @@ namespace Sage
             CompilerLogger.LogInfo($"App exited with code: {process?.ExitCode ?? -1}");
         }
 
-        /// <summary>Executes the generated binary in a clean environment for release builds.</summary>
         private static void RunApplicationRelease(string exePath)
         {
             Process.Start(new ProcessStartInfo
@@ -232,23 +275,55 @@ namespace Sage
             })?.WaitForExit();
         }
 
-        /// <summary>Resolves build flags and input paths from command-line arguments.</summary>
         private static CompilerConfig ResolveConfiguration(string[] args)
         {
 #if DEBUG
-            // Automated configuration for development convenience
-            string projectRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../"));
-            string inputPath = Path.Combine(projectRoot, "Sandbox", "src", "main.sg");
-            return new CompilerConfig(inputPath, true, true);
-#else
-        if (args.Length == 0) throw new ArgumentException("Usage: Sage <main.sg> [--verbose]");
-        bool verbose = args.Contains("--verbose") || args.Contains("-v");
-        string file = args.First(a => !a.StartsWith("-"));
-        return new CompilerConfig(Path.GetFullPath(file), verbose, true);
+            // Dev Environment Sandbox Fallback
+            if (args.Length == 0)
+            {
+                string projectRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../"));
+                string sandboxPath = Path.Combine(projectRoot, "Sandbox", "src", "main.sg");
+
+                if (!Directory.Exists(Path.GetDirectoryName(sandboxPath)))
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(sandboxPath)!);
+                    File.WriteAllText(sandboxPath, "use console;\nfunc main() : none { console::print_line(\"Debug Mode Working!\"); }");
+                }
+                return new CompilerConfig(sandboxPath, true, true, true);
+            }
 #endif
+            if (args.Length == 0) throw new ArgumentException("Usage: sage <command> OR sage <file>");
+
+            bool verbose = args.Contains("--verbose") || args.Contains("-v");
+            string command = args.FirstOrDefault(a => !a.StartsWith('-')) ?? "";
+            string autoPath = Path.Combine(Directory.GetCurrentDirectory(), "src", "main.sg");
+
+            if (command.Equals("run", StringComparison.OrdinalIgnoreCase))
+            {
+                ValidateEntry(autoPath);
+                return new CompilerConfig(autoPath, verbose, true, true);
+            }
+
+            if (command.Equals("build", StringComparison.OrdinalIgnoreCase))
+            {
+                ValidateEntry(autoPath);
+                return new CompilerConfig(autoPath, verbose, true, false);
+            }
+
+            string explicitFile = Path.GetFullPath(command);
+            if (!File.Exists(explicitFile))
+                throw new FileNotFoundException($"Source file not found: {explicitFile}");
+
+            return new CompilerConfig(explicitFile, verbose, true, true);
         }
 
-        /// <summary>Helper method to save debugging files (.tok, .ast, etc.) to the disk.</summary>
-        private static void SaveDebugOutput(string path, string content) => File.WriteAllText(path, content);
+        private static void ValidateEntry(string path)
+        {
+            if (!File.Exists(path))
+                throw new FileNotFoundException($"Entry point not found at '{path}'. Are you inside a Sage project root?");
+        }
+
+        // Helper record to pass path context around
+        private record CompilationEnvironment(string ProjectRoot, string SourceDir, string ObjDir, string BinDir, string StdDir, string ExeDir);
     }
 }

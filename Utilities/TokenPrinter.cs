@@ -10,6 +10,13 @@ namespace Sage.Utilities
     /// </summary>
     public static class TokenPrinter
     {
+        // FIX: Cache the options instance to avoid performance hit (CA1869)
+        private static readonly JsonSerializerOptions _options = new()
+        {
+            WriteIndented = true,
+            Converters = { new JsonStringEnumConverter() }
+        };
+
         /// <summary>
         /// Serializes a collection of tokens into an indented JSON string.
         /// </summary>
@@ -17,14 +24,7 @@ namespace Sage.Utilities
         /// <returns>A formatted JSON string representing the token data.</returns>
         public static string Print(IEnumerable<Token> tokens)
         {
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                // Ensures Enums (TokenType) are printed as strings for readability
-                Converters = { new JsonStringEnumConverter() }
-            };
-
-            return JsonSerializer.Serialize(tokens, options);
+            return JsonSerializer.Serialize(tokens, _options);
         }
     }
 }
