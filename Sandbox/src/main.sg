@@ -2,7 +2,7 @@ use console;
 
 func main(): none
 {
-    console::clear();
+    // console::clear();
     console::print_line("--- SAGE CONSOLE TEST ---");
     console::print("Digite algo e aperte Enter: ");
     
