@@ -1,80 +1,69 @@
-﻿using System.Collections.Generic;
-
-namespace Sage.Core
+﻿namespace Sage.Core
 {
     /// <summary>
-    /// Manages nested identifier scopes using a stack-based approach.
-    /// Supports scoping rules for variables, allowing for global and local visibility.
+    /// Manages the mapping of identifiers to their metadata across nested scopes.
+    /// Implements a stack-based scoping mechanism to support block-level visibility 
+    /// and variable shadowing.
     /// </summary>
     public class SymbolTable
     {
         /// <summary>
-        /// A stack of scopes, where each scope is a dictionary mapping identifier names to their associated Sage types.
+        /// A stack of dictionaries, where each dictionary represents a unique lexical scope.
+        /// The top of the stack is the current (deepest) scope.
         /// </summary>
-        private readonly Stack<Dictionary<string, string>> _scopes = new();
+        private readonly Stack<Dictionary<string, SymbolMetadata>> _scopes = new();
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="SymbolTable"/> class and enters the global scope.
+        /// Initializes a new instance of the <see cref="SymbolTable"/> class with a global scope.
         /// </summary>
-        public SymbolTable()
-        {
-            EnterScope();
-        }
+        public SymbolTable() { EnterScope(); }
 
         /// <summary>
-        /// Pushes a new scope level onto the stack (e.g., entering a function or block).
+        /// Pushes a new, empty scope onto the stack. Call this when entering a function or code block.
         /// </summary>
-        public void EnterScope() => _scopes.Push(new Dictionary<string, string>());
+        public void EnterScope() => _scopes.Push([]);
 
         /// <summary>
-        /// Removes the current scope level from the stack (e.g., exiting a block).
-        /// Prevents the removal of the final global scope level.
+        /// Removes the current scope from the stack. Call this when exiting a function or code block.
+        /// Note: The global scope cannot be popped.
         /// </summary>
-        public void ExitScope()
-        {
-            if (_scopes.Count > 1)
-                _scopes.Pop();
-        }
+        public void ExitScope() { if (_scopes.Count > 1) _scopes.Pop(); }
 
         /// <summary>
-        /// Defines a new identifier along with its associated Sage type within the current active scope.
+        /// Registers a new symbol in the current scope.
         /// </summary>
-        /// <param name="name">The unique identifier name to define in the current scope.</param>
-        /// <param name="type">The Sage data type associated with this identifier (e.g., "i32", "f64", "str").</param>
-        public void Define(string name, string type)
+        /// <param name="name">The identifier name.</param>
+        /// <param name="type">The Sage data type associated with the symbol.</param>
+        /// <param name="isFunction">True if the symbol represents a callable function.</param>
+        /// <param name="isExtern">True if the symbol is defined externally (C interop).</param>
+        public void Define(string name, string type, bool isFunction = false, bool isExtern = false)
         {
             if (_scopes.Count > 0)
             {
-                _scopes.Peek()[name] = type;
+                _scopes.Peek()[name] = new SymbolMetadata(type, isFunction, isExtern);
             }
         }
 
         /// <summary>
-        /// Checks if a variable is already declared *specifically* in the immediate current scope.
-        /// This is crucial for detecting duplicate declarations like 'var x... var x...'.
+        /// Searches for a symbol by name, starting from the innermost scope and moving outward to the global scope.
         /// </summary>
-        /// <param name="name">The identifier name to check.</param>
-        /// <returns>True if the identifier exists in the top-most scope; otherwise, false.</returns>
-        public bool IsDefinedInCurrentScope(string name)
-        {
-            return _scopes.Count > 0 && _scopes.Peek().ContainsKey(name);
-        }
-
-        /// <summary>
-        /// Attempts to resolve an identifier's type by searching from the innermost scope outward to the global scope.
-        /// </summary>
-        /// <param name="name">The name of the identifier to search for.</param>
-        /// <returns>A string representing the identifier's Sage type if found; otherwise, returns <c>null</c>.</returns>
-        public string? Resolve(string name)
+        /// <param name="name">The identifier name to look up.</param>
+        /// <returns>The <see cref="SymbolMetadata"/> if found; otherwise, <c>null</c>.</returns>
+        public SymbolMetadata? Resolve(string name)
         {
             foreach (var scope in _scopes)
             {
-                if (scope.TryGetValue(name, out var type))
-                {
-                    return type;
-                }
+                if (scope.TryGetValue(name, out var metadata)) return metadata;
             }
             return null;
         }
+
+        /// <summary>
+        /// Checks if a symbol is already declared specifically within the current (topmost) scope.
+        /// Useful for preventing duplicate declarations within the same block.
+        /// </summary>
+        /// <param name="name">The identifier name to check.</param>
+        /// <returns><c>true</c> if the symbol exists in the current scope; otherwise, <c>false</c>.</returns>
+        public bool IsDefinedInCurrentScope(string name) => _scopes.Count > 0 && _scopes.Peek().ContainsKey(name);
     }
 }

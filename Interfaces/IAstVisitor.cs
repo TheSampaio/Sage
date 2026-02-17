@@ -1,7 +1,7 @@
-﻿namespace Sage.Interfaces
-{
-    using Sage.Ast;
+﻿using Sage.Ast;
 
+namespace Sage.Interfaces
+{
     /// <summary>
     /// Defines a visitor for the Sage Abstract Syntax Tree (AST).
     /// Implements the Visitor Pattern to decouple node structures from their processing logic.

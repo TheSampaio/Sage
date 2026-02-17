@@ -45,6 +45,11 @@ namespace Sage.Ast
         public string ModuleOwner { get; set; } = moduleOwner;
 
         /// <summary>
+        /// Gets a value indicating whether the function is defined externally (e.g., C interop).
+        /// </summary>
+        public bool IsExtern { get; set; } = false;
+
+        /// <summary>
         /// Dispatches the visitor to the appropriate visit method for this function declaration.
         /// </summary>
         /// <typeparam name="T">The return type of the visitor's operation.</typeparam>

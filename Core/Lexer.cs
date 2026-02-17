@@ -5,8 +5,9 @@ using Sage.Utilities;
 namespace Sage.Core
 {
     /// <summary>
-    /// Performs lexical analysis on Sage source code. 
-    /// Converts raw text into a sequence of tokens using a single-pass scanner.
+    /// Performs lexical analysis on Sage source code.
+    /// This class scans the raw input text and converts it into a sequence of <see cref="Token"/> objects
+    /// based on the Sage language grammar.
     /// </summary>
     /// <param name="text">The raw source code to be tokenized.</param>
     public class Lexer(string text) : ILexer
@@ -16,43 +17,46 @@ namespace Sage.Core
         private int _line = 1;
         private int _col = 1;
 
-        /// <summary>
-        /// Gets the character at the current scanner position.
-        /// </summary>
+        /// <summary>Gets the character at the current scanner position.</summary>
         private char Current => _pos < _text.Length ? _text[_pos] : '\0';
 
-        /// <summary>
-        /// Peeks at the character immediately following the current position.
-        /// </summary>
+        /// <summary>Peeks at the character immediately following the current position.</summary>
         private char Lookahead => _pos + 1 < _text.Length ? _text[_pos + 1] : '\0';
 
         /// <summary>
-        /// Internal map of keywords and built-in types to their respective token types.
+        /// Internal map of Sage keywords and built-in types to their respective <see cref="TokenType"/>.
         /// </summary>
         private static readonly Dictionary<string, TokenType> Keywords = new()
-        {
-            { "use", TokenType.Keyword_Use }, { "func", TokenType.Keyword_Func },
-            { "return", TokenType.Keyword_Return }, { "module", TokenType.Keyword_Module },
-            { "var", TokenType.Keyword_Var }, { "const", TokenType.Keyword_Const },
-            { "as", TokenType.Keyword_As }, { "true", TokenType.Keyword_True },
-            { "false", TokenType.Keyword_False }, { "if", TokenType.Keyword_If },
-            { "else", TokenType.Keyword_Else }, { "while", TokenType.Keyword_While },
-            { "for", TokenType.Keyword_For },
-
-            // Fixed-width types
-            { "i8", TokenType.Type_I8 }, { "u8", TokenType.Type_U8 },
-            { "i16", TokenType.Type_I16 }, { "u16", TokenType.Type_U16 },
-            { "i32", TokenType.Type_I32 }, { "u32", TokenType.Type_U32 },
-            { "i64", TokenType.Type_I64 }, { "u64", TokenType.Type_U64 },
-            { "f32", TokenType.Type_F32 }, { "f64", TokenType.Type_F64 },
-            { "b8", TokenType.Type_B8 }, { "str", TokenType.Type_Str },
-            { "none", TokenType.Type_Void }
-        };
+    {
+        { "use", TokenType.Keyword_Use },
+        { "extern", TokenType.Keyword_Extern },
+        { "func", TokenType.Keyword_Func },
+        { "return", TokenType.Keyword_Return },
+        { "module", TokenType.Keyword_Module },
+        { "var", TokenType.Keyword_Var },
+        { "const", TokenType.Keyword_Const },
+        { "as", TokenType.Keyword_As },
+        { "true", TokenType.Keyword_True },
+        { "false", TokenType.Keyword_False },
+        { "if", TokenType.Keyword_If },
+        { "else", TokenType.Keyword_Else },
+        { "while", TokenType.Keyword_While },
+        { "for", TokenType.Keyword_For },
+        // Types
+        { "i8", TokenType.Type_I8 }, { "u8", TokenType.Type_U8 },
+        { "i16", TokenType.Type_I16 }, { "u16", TokenType.Type_U16 },
+        { "i32", TokenType.Type_I32 }, { "u32", TokenType.Type_U32 },
+        { "i64", TokenType.Type_I64 }, { "u64", TokenType.Type_U64 },
+        { "f32", TokenType.Type_F32 }, { "f64", TokenType.Type_F64 },
+        { "b8", TokenType.Type_B8 }, { "str", TokenType.Type_Str },
+        { "none", TokenType.Type_Void }
+    };
 
         /// <summary>
-        /// Scans the entire source text and returns a list of valid tokens.
+        /// Scans the entire source text and produces a list of valid tokens.
+        /// The stream always concludes with an <c>EndOfFile</c> token.
         /// </summary>
-        /// <returns>A list of Token objects, ending with EndOfFile.</returns>
+        /// <returns>A list of identified <see cref="Token"/> objects.</returns>
         public List<Token> Tokenize()
         {
             var tokens = new List<Token>();
@@ -94,7 +98,7 @@ namespace Sage.Core
         }
 
         /// <summary>
-        /// Advances the scanner position by one and updates line/column trackers.
+        /// Advances the current position of the scanner and updates line/column trackers.
         /// </summary>
         private void Advance()
         {
@@ -114,9 +118,9 @@ namespace Sage.Core
         }
 
         /// <summary>
-        /// Reads an alphanumeric identifier and checks if it matches a reserved keyword.
+        /// Consumes an alphanumeric identifier and determines if it is a keyword or a user-defined name.
         /// </summary>
-        /// <returns>A token of type Identifier or Keyword.</returns>
+        /// <returns>A token of type <c>Identifier</c> or a specific <c>Keyword</c> type.</returns>
         private Token LexIdentifier()
         {
             int startPos = _pos;
@@ -134,9 +138,9 @@ namespace Sage.Core
         }
 
         /// <summary>
-        /// Scans a numeric literal, supporting both integers and floating-point numbers.
+        /// Consumes a numeric sequence and distinguishes between <c>Integer</c> and <c>Float</c> literals.
         /// </summary>
-        /// <returns>A token of type Integer or Float.</returns>
+        /// <returns>A numeric token.</returns>
         private Token LexNumber()
         {
             int startPos = _pos;
@@ -144,10 +148,10 @@ namespace Sage.Core
 
             while (_pos < _text.Length && char.IsDigit(Current)) Advance();
 
-            // Floating point check
+            // Support for floating point notation
             if (Current == '.' && char.IsDigit(Lookahead))
             {
-                Advance(); // Consume '.'
+                Advance();
                 while (_pos < _text.Length && char.IsDigit(Current)) Advance();
                 return new Token(TokenType.Float, _text[startPos.._pos], _line, startCol);
             }
@@ -156,9 +160,9 @@ namespace Sage.Core
         }
 
         /// <summary>
-        /// Scans a string literal enclosed in double quotes.
+        /// Consumes a string literal enclosed in double quotes.
         /// </summary>
-        /// <returns>A token containing the string content without quotes.</returns>
+        /// <returns>A token containing the string content without the quotes.</returns>
         private Token LexString()
         {
             int startPos = _pos;
@@ -173,23 +177,23 @@ namespace Sage.Core
         }
 
         /// <summary>
-        /// Handles symbols, multi-character operators, and comments.
+        /// Processes symbols, multi-character operators, and skips comments.
         /// </summary>
-        /// <returns>A Token object, or null if a comment was skipped.</returns>
+        /// <returns>A symbolic token, or <c>null</c> if a comment was skipped.</returns>
         private Token? LexSymbol()
         {
             char c = Current;
             char next = Lookahead;
             int startCol = _col;
 
-            // Handle Comments (//)
+            // Skip single-line comments
             if (c == '/' && next == '/')
             {
                 while (_pos < _text.Length && Current != '\n') Advance();
                 return null;
             }
 
-            // Multi-character Operators
+            // Multi-character Operator Resolution
             if (c == ':' && next == ':') { Advance(); Advance(); return new Token(TokenType.DoubleColon, "::", _line, startCol); }
             if (c == '=' && next == '=') { Advance(); Advance(); return new Token(TokenType.EqualEqual, "==", _line, startCol); }
             if (c == '!' && next == '=') { Advance(); Advance(); return new Token(TokenType.NotEqual, "!=", _line, startCol); }
@@ -199,7 +203,7 @@ namespace Sage.Core
             if (c == '|' && next == '|') { Advance(); Advance(); return new Token(TokenType.PipePipe, "||", _line, startCol); }
             if (c == '+' && next == '+') { Advance(); Advance(); return new Token(TokenType.PlusPlus, "++", _line, startCol); }
 
-            // Single-character Operators
+            // Single-character Operator Resolution
             Advance();
             TokenType type = c switch
             {
