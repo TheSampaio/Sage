@@ -76,6 +76,12 @@ The project is currently in **v0.4.0 (Alpha)**.
 
 ## License
 
-This project is licensed under the **MIT License**.
+This project is licensed under the **Apache License 2.0**.
+
+### Why Apache 2.0?
+Sage is built for the community. This license allows you to:
+* **Use for any purpose:** Commercial or private.
+* **Modify and Distribute:** You can fork and change the code.
+* **Attribution:** You must keep the original copyright notice and credit Kellvyn Sampaio.
 
 © 2026 Kellvyn Sampaio — Sage Language Project
