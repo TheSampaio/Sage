@@ -20,10 +20,44 @@ The project strictly follows **SOLID principles** and **Clean Code** architectur
 
 ## Dependencies
 
-Sage relies on an external C toolchain to finalize the build process.
+Sage acts as a transpiler (Source-to-Source), converting your `.sg` code into optimized C. To finalize the build into a native executable, it relies on an external C toolchain.
 
-* **GCC (GNU Compiler Collection):** **Required**
-* **Installation:** Ensure you have **MinGW-w64** installed and added to your system's `PATH`.
+* **GCC (GNU Compiler Collection):** [Official Website]() — **Required**
+
+### Linux (Debian/Ubuntu) Installation
+
+On Debian-based systems, the easiest way to get everything you need is by installing the `build-essential` package.
+
+1. Open your terminal.
+2. Run the following command:
+```bash
+sudo apt update && sudo apt install build-essential
+```
+
+3. Verify the installation by typing `gcc --version`.
+
+### Windows (MinGW-w64) Installation
+
+For Windows, we recommend using **MinGW-w64** via MSYS2 for a modern and stable environment.
+
+#### 1. Install MSYS2
+
+* Download and run the installer from [msys2.org]().
+* Once finished, open the **MSYS2 UCRT64** terminal and run:
+```bash
+pacman -S mingw-w64-ucrt-x86_64-gcc
+```
+
+#### 2. Adding to System PATH
+
+To run `gcc` from any terminal (PowerShell, CMD, or VS Code), you must add it to your Environment Variables:
+
+1. Press `Win + S` and search for **"Edit the system environment variables"**.
+2. Click **Environment Variables** (bottom right).
+3. Under **System variables**, find the **Path** variable and click **Edit**.
+4. Click **New** and paste the path to your MinGW bin folder (usually `C:\msys64\ucrt64\bin`).
+5. Click **OK** on all windows.
+6. **Restart your terminal** and type `gcc --version` to confirm.
 
 ## Compiler Pipeline
 
