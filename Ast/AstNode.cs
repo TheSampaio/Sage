@@ -10,6 +10,16 @@ namespace Sage.Ast
     public abstract class AstNode
     {
         /// <summary>
+        /// Gets the line number in the source code where this node starts.
+        /// </summary>
+        public int Line { get; set; }
+
+        /// <summary>
+        /// Gets the column number in the source code where this node starts.
+        /// </summary>
+        public int Column { get; set; }
+
+        /// <summary>
         /// Dispatches the node to the appropriate visit method on the provided visitor.
         /// </summary>
         /// <typeparam name="T">The return type of the visitor's operation.</typeparam>

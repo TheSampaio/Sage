@@ -46,9 +46,10 @@ namespace Sage.Utilities
         {
             Type = "FunctionDeclaration",
             Name = node.Name,
+            IsExtern = node.IsExtern,
             ReturnType = node.ReturnType,
             Parameters = node.Parameters.Select(p => new { p.Name, p.Type }),
-            Body = node.Body.Accept(this)
+            Body = node.Body?.Accept(this)
         };
 
         public object Visit(BlockNode node) => new

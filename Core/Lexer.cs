@@ -31,12 +31,19 @@ namespace Sage.Core
         /// </summary>
         private static readonly Dictionary<string, TokenType> Keywords = new()
         {
-            { "use", TokenType.Keyword_Use }, { "func", TokenType.Keyword_Func },
-            { "return", TokenType.Keyword_Return }, { "module", TokenType.Keyword_Module },
-            { "var", TokenType.Keyword_Var }, { "const", TokenType.Keyword_Const },
-            { "as", TokenType.Keyword_As }, { "true", TokenType.Keyword_True },
-            { "false", TokenType.Keyword_False }, { "if", TokenType.Keyword_If },
-            { "else", TokenType.Keyword_Else }, { "while", TokenType.Keyword_While },
+            { "use", TokenType.Keyword_Use },
+            { "extern", TokenType.Keyword_Extern },
+            { "func", TokenType.Keyword_Func },
+            { "return", TokenType.Keyword_Return },
+            { "module", TokenType.Keyword_Module },
+            { "var", TokenType.Keyword_Var },
+            { "const", TokenType.Keyword_Const },
+            { "as", TokenType.Keyword_As },
+            { "true", TokenType.Keyword_True },
+            { "false", TokenType.Keyword_False },
+            { "if", TokenType.Keyword_If },
+            { "else", TokenType.Keyword_Else },
+            { "while", TokenType.Keyword_While },
             { "for", TokenType.Keyword_For },
 
             // Fixed-width types

@@ -1,37 +1,49 @@
-﻿using Sage.Core;
+﻿using Sage.Ast;
+using Sage.Core;
 
 namespace Sage.Utilities
 {
-    /// <summary>
-    /// Represents a specialized exception thrown during the compilation process (Lexing, Parsing, or Semantic Analysis).
-    /// Provides metadata about the specific token and error code to facilitate debugging.
-    /// </summary>
-    /// <param name="token">The token where the error was detected. Can be null if the error is global.</param>
-    /// <param name="code">A standardized Sage error code (e.g., "S001", "S105").</param>
-    /// <param name="message">A human-readable description of the error.</param>
-    public class CompilerException(Token? token, string code, string message) : Exception(message)
+    public class CompilerException : Exception
     {
-        /// <summary>
-        /// Gets the token that caused the compilation error.
-        /// Includes line and column information for error reporting.
-        /// </summary>
-        public Token? OffendingToken { get; } = token;
+        public Token? OffendingToken { get; private set; }
+        public string ErrorCode { get; }
+        public int Line { get; }
+        public int Column { get; }
 
-        /// <summary>
-        /// Gets the standardized Sage error code.
-        /// </summary>
-        public string ErrorCode { get; } = code;
+        // Construtor para Lexer/Parser (Usa Token)
+        public CompilerException(Token? token, string code, string message) : base(message)
+        {
+            ErrorCode = code;
+            OffendingToken = token;
+            if (token != null)
+            {
+                Line = token.Line;
+                Column = token.Column;
+            }
+        }
 
-        /// <summary>
-        /// Formats the exception into a professional compiler error string.
-        /// </summary>
-        /// <returns>A formatted string: Error [Code] at line [Line]: [Message]</returns>
+        // Construtor para Semantic (Usa AstNode)
+        public CompilerException(AstNode node, string code, string message) : base(message)
+        {
+            ErrorCode = code;
+            Line = node.Line;
+            Column = node.Column;
+            OffendingToken = null;
+        }
+
         public override string ToString()
         {
+            // Mantendo seu padrão original de saída
             if (OffendingToken != null)
             {
                 return $"error {ErrorCode}: {Message} at line {OffendingToken.Line}, column {OffendingToken.Column} ('{OffendingToken.Value}')";
             }
+
+            if (Line > 0)
+            {
+                return $"error {ErrorCode}: {Message} at line {Line}, column {Column}";
+            }
+
             return $"error {ErrorCode}: {Message}";
         }
     }

@@ -26,6 +26,7 @@ namespace Sage.Core
             sb.AppendLine("/* --- Type Definitions --- */");
             sb.AppendLine("typedef float    f32; typedef double   f64;");
             sb.AppendLine("typedef int32_t  i32; typedef bool     b8;");
+            sb.AppendLine("typedef char* str;");
             sb.AppendLine("typedef void     none;");
             sb.AppendLine("");
 
@@ -34,6 +35,16 @@ namespace Sage.Core
             sb.Append(ast.Accept(this));
 
             return sb.ToString();
+        }
+
+        private static string ConvertType(string sageType)
+        {
+            return sageType switch
+            {
+                "none" => "void",
+                "str" => "char*", // Caso você não queira usar o typedef 'str' em todo lugar
+                _ => sageType
+            };
         }
 
         public string Visit(ProgramNode node)
@@ -60,20 +71,26 @@ namespace Sage.Core
 
         public string Visit(FunctionDeclarationNode node)
         {
-            // Convert Sage types to C types
-            string cReturnType = node.ReturnType == "none" ? "void" : node.ReturnType;
-
-            // Resolve C function name (Namespace_Function)
-            string cName = string.IsNullOrEmpty(node.ModuleOwner)
+            // Se for extern, não usamos o ModuleOwner no nome (ex: vira apenas 'printf')
+            // Se não for, usamos o padrão 'modulo_funcao'
+            string cName = node.IsExtern
                 ? node.Name
-                : $"{node.ModuleOwner}_{node.Name}";
+                : (node.Name.Equals("main", StringComparison.OrdinalIgnoreCase)
+                    ? "main"
+                    : (string.IsNullOrEmpty(node.ModuleOwner) ? node.Name : $"{node.ModuleOwner}_{node.Name}"));
 
-            // Format parameters using LINQ for cleaner code
-            var paramList = node.Parameters.Select(p => $"{p.Type} {p.Name}");
-            string paramsStr = string.Join(", ", paramList);
+            bool isMain = node.Name.Equals("main", StringComparison.OrdinalIgnoreCase);
+            string cReturnType = isMain ? "int" : ConvertType(node.ReturnType);
 
-            // Output: "f32 math_sum(f32 x, f32 y);\n"
-            return $"{cReturnType} {cName}({paramsStr});\n";
+            // Formatação dos parâmetros
+            string paramsStr = (isMain || node.Parameters.Count == 0)
+                ? "void"
+                : string.Join(", ", node.Parameters.Select(p => $"{ConvertType(p.Type)} {p.Name}"));
+
+            // Adicionamos a keyword 'extern' do C para deixar claro que a função vem de fora
+            string prefix = node.IsExtern ? "extern " : "";
+
+            return $"{prefix}{cReturnType} {cName}({paramsStr});\n";
         }
 
         // --- Nodes ignored in Header Generation ---

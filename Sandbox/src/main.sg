@@ -1,11 +1,13 @@
-// main.sg
 use console;
-use math;
 
 func main(): none
 {
-    var x: f32 = 24.5;
-    var y: f32 = 24.5;
-
-    console::print_line("Sum: {x} + {y} = {math::sum(x, y)}");
+    console::clear();
+    console::print_line("--- SAGE CONSOLE TEST ---");
+    console::print("Digite algo e aperte Enter: ");
+    
+    var tecla: i32 = console::read();
+    
+    console::print_line("");
+    console::print_line("Obrigado por testar a Sage!");
 }

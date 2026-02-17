@@ -8,6 +8,7 @@
     {
         // --- Keywords ---
         Keyword_Use,
+        Keyword_Extern,
         Keyword_Func,
         Keyword_Return,
         Keyword_Module,
