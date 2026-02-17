@@ -36,6 +36,14 @@ namespace Sage
 
             try
             {
+                if (args.Contains("--v") || args.Contains("--version"))
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine("Sage Compiler v0.3.0 (Alpha)");
+                    Console.ResetColor();
+                    return;
+                }
+
                 var config = ResolveConfiguration(args);
 
                 // --- 1. Intelligent Directory Resolution ---
