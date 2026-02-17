@@ -1,21 +1,21 @@
 # Sage Programming Language
 
 <p align="center">
-  <img src="Assets/Images/sage-programming-language-logo.png" alt="Sage Logo">
+<img src="Assets/Images/sage-programming-language-logo.png" alt="Sage Logo">
 </p>
 
-**Sage** is a statically typed, compiled programming language designed for high-performance applications and systems development. 
-The compiler is implemented in **C# (.NET 8)** and operates as a full toolchain: it **transpiles** Sage source code (`.sg`) into optimized **C11** code and then orchestrates a native C compiler (GCC) to produce a standalone **Windows Executable (`.exe`)**.
+**Sage** is a statically typed, compiled programming language designed for high-performance applications and systems development.
+The compiler is implemented in **C# (.NET 9)** and operates as a full toolchain: it **transpiles** Sage source code (`.sg`) into optimized **C11** code and then orchestrates a native C compiler (GCC) to produce a standalone **Windows Executable (`.exe`)**.
 
 The project strictly follows **SOLID principles** and **Clean Code** architecture, utilizing the **Visitor Pattern** for AST traversal, semantic analysis, and code generation.
 
 ## Core Features
 
-* **Battery Included:** Handles the entire build process from source to binary (`.exe`).
-* **Control Flow:** Full support for `if/else` branching, `while` loops, and C-style `for` loops.
-* **Modern Type System:** Explicit types (`i32`, `f64`, `str`, `b8`) with support for **Constants** (`const`) and **Type Promotion**.
-* **Boolean Logic:** Native `b8` type with logical operators (`&&`, `||`, `!`) and comparisons.
-* **Modularity:** Code organization via `module` blocks and namespaced calls (`math::sum`).
+* **Native Compilation:** Handles the entire build process from source to optimized binary (`.exe`).
+* **Foreign Function Interface (FFI):** Support for `extern` declarations, allowing direct interoperability with C standard libraries and external files.
+* **Tree-Shaking Code Gen:** Smart header management that only includes necessary C headers (`stdio.h`, `stdint.h`, etc.) based on actual code usage.
+* **Modern Type System:** Explicit types (`i32`, `f64`, `str`, `b8`) with support for **Constants** (`const`) and **Explicit Casting** (`as`).
+* **Modularity:** First-class support for `module` blocks and namespaced calls (`math::sum`) to manage large codebases.
 * **Developer Tooling:** Standardized **JSON** debug outputs for Tokens (`.tok.json`) and Abstract Syntax Trees (`.ast.json`).
 
 ## Dependencies
@@ -30,10 +30,10 @@ Sage relies on an external C toolchain to finalize the build process.
 1. **Lexer:** Converts source code into a sequence of strictly typed `Tokens`.
 2. **Parser:** Builds a hierarchical **Abstract Syntax Tree (AST)** using recursive descent.
 3. **Semantic Analyzer:** Manages scopes via `SymbolTable`, validates mutability (`const`), and performs strict **Type Checking**.
-4. **Code Generator:** Traverses the AST to emit optimized, human-readable C11 code.
+4. **Code Generator:** Traverses the AST to emit optimized C11 code, handling ABI compliance and C-style type mapping.
 5. **Native Toolchain:** Invokes GCC to compile the intermediate C code into a final binary.
 
-## Syntax Example (Control Flow & Logic)
+## Syntax Example
 
 ```rust
 use console;
@@ -60,16 +60,18 @@ func main(): none
 
 ## Project Status
 
-The project is currently in **v0.2.0 (Alpha)**.
+The project is currently in **v0.3.0 (Alpha)**.
 
 * [x] **Variable Declarations** (`var`) & **Constants** (`const`)
-* [x] **Explicit Casting** (`as`)
 * [x] **Control Flow** (`if`, `else`, `while`, `for`)
-* [x] **Logical & Comparison Operators** (`&&`, `||`, `!`, `==`, `!=`, etc.)
+* [x] **FFI / External Functions** (`extern`)
+* [x] **Header Tree-Shaking** (Optimized C output)
+* [x] **Logical & Comparison Operators** (`&&`, `||`, `!`, `==`, etc.)
 * [x] **Modules & Namespaces** (`::`)
 * [x] **String Interpolation** (compiled to `printf`)
 * [x] **Native Compilation** (GCC Integration)
 * [ ] **Arrays and Pointers** (Next Milestone)
+* [ ] **Structs and Custom Types** (Planned)
 
 ## License
 
