@@ -1,6 +1,4 @@
-﻿using System;
-using System.IO;
-using Sage.Utilities;
+﻿using Sage.Utilities;
 
 namespace Sage.Core
 {
@@ -8,14 +6,9 @@ namespace Sage.Core
     /// Wrapper for the system's native C compiler (GCC).
     /// Handles the transformation of generated C code into a final executable binary.
     /// </summary>
-    public sealed class NativeCompiler
+    public sealed class NativeCompiler(string compilerCommand = "gcc")
     {
-        private readonly string _compilerCommand;
-
-        public NativeCompiler(string compilerCommand = "gcc")
-        {
-            _compilerCommand = compilerCommand;
-        }
+        private readonly string _compilerCommand = compilerCommand;
 
         /// <summary>
         /// Compiles a C source file directly to an executable.

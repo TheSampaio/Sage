@@ -3,14 +3,40 @@ using Sage.Core;
 
 namespace Sage.Utilities
 {
+    /// <summary>
+    /// Represents a specialized exception for errors encountered during the compilation process.
+    /// Stores detailed source location information (line, column) and unique error codes.
+    /// </summary>
     public class CompilerException : Exception
     {
+        /// <summary>
+        /// Gets the <see cref="Token"/> that caused the error, if available. 
+        /// Typically present during Lexical or Syntax analysis.
+        /// </summary>
         public Token? OffendingToken { get; private set; }
+
+        /// <summary>
+        /// Gets the unique identification code for the error (e.g., "S101").
+        /// </summary>
         public string ErrorCode { get; }
+
+        /// <summary>
+        /// Gets the 1-based line number in the source file where the error occurred.
+        /// </summary>
         public int Line { get; }
+
+        /// <summary>
+        /// Gets the 1-based column position in the source file where the error occurred.
+        /// </summary>
         public int Column { get; }
 
-        // Construtor para Lexer/Parser (Usa Token)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="CompilerException"/> class using a source token.
+        /// Used primarily by the Lexer and Parser.
+        /// </summary>
+        /// <param name="token">The token where the error was detected.</param>
+        /// <param name="code">The unique error code.</param>
+        /// <param name="message">A descriptive message explaining the error.</param>
         public CompilerException(Token? token, string code, string message) : base(message)
         {
             ErrorCode = code;
@@ -22,7 +48,13 @@ namespace Sage.Utilities
             }
         }
 
-        // Construtor para Semantic (Usa AstNode)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="CompilerException"/> class using an AST node.
+        /// Used primarily by the Semantic Analyzer when location data is tied to the node structure.
+        /// </summary>
+        /// <param name="node">The AST node where the semantic error was detected.</param>
+        /// <param name="code">The unique error code.</param>
+        /// <param name="message">A descriptive message explaining the error.</param>
         public CompilerException(AstNode node, string code, string message) : base(message)
         {
             ErrorCode = code;
@@ -31,19 +63,26 @@ namespace Sage.Utilities
             OffendingToken = null;
         }
 
+        /// <summary>
+        /// Returns a formatted string representation of the compilation error,
+        /// including the error code, message, and source location.
+        /// </summary>
+        /// <returns>A string formatted for compiler output.</returns>
         public override string ToString()
         {
-            // Mantendo seu padrão original de saída
+            // Format for errors that have an associated token (Lexer/Parser)
             if (OffendingToken != null)
             {
                 return $"error {ErrorCode}: {Message} at line {OffendingToken.Line}, column {OffendingToken.Column} ('{OffendingToken.Value}')";
             }
 
+            // Format for errors derived from AST nodes (Semantic Analysis)
             if (Line > 0)
             {
                 return $"error {ErrorCode}: {Message} at line {Line}, column {Column}";
             }
 
+            // Fallback format
             return $"error {ErrorCode}: {Message}";
         }
     }

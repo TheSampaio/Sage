@@ -5,22 +5,35 @@ using Sage.Utilities;
 
 namespace Sage.Core
 {
+    /// <summary>
+    /// Performs syntax analysis (parsing) on a stream of Sage tokens.
+    /// Implements a Recursive Descent Parser to construct an Abstract Syntax Tree (AST).
+    /// </summary>
+    /// <param name="tokens">The list of tokens produced by the Lexer.</param>
+    /// <param name="fileName">The name of the source file being parsed (for error reporting).</param>
     public class Parser(List<Token> tokens, string fileName) : IParser
     {
         private readonly List<Token> _tokens = tokens;
-        private string _fileName = fileName;
+        private readonly string _fileName = fileName;
         private int _pos = 0;
 
+        /// <summary>Gets the current token in the stream without consuming it.</summary>
         private Token Current => _pos < _tokens.Count ? _tokens[_pos] : _tokens[^1];
 
-        // Método auxiliar para criar um nó e já definir sua posição
-        private T CreateNode<T>(T node, Token token) where T : AstNode
+        /// <summary>
+        /// Helper method to initialize an AST node with its source code location.
+        /// </summary>
+        private static T CreateNode<T>(T node, Token token) where T : AstNode
         {
             node.Line = token.Line;
             node.Column = token.Column;
             return node;
         }
 
+        /// <summary>
+        /// Ensures the current token matches the expected type and consumes it.
+        /// </summary>
+        /// <exception cref="CompilerException">Thrown if the current token does not match the expected type.</exception>
         private Token Consume(TokenType type, string errorMessage = "")
         {
             if (Current.Type == type)
@@ -37,6 +50,9 @@ namespace Sage.Core
             throw new CompilerException(Current, "S001", msg);
         }
 
+        /// <summary>
+        /// Checks if the current token matches the given type. If so, consumes it and returns true.
+        /// </summary>
         private bool Match(TokenType type)
         {
             if (Current.Type == type)
@@ -47,6 +63,9 @@ namespace Sage.Core
             return false;
         }
 
+        /// <summary>
+        /// Entry point of the parser. Processes the token stream into a <see cref="ProgramNode"/>.
+        /// </summary>
         public ProgramNode Parse()
         {
             var program = new ProgramNode { Line = 1, Column = 1 };
@@ -60,6 +79,7 @@ namespace Sage.Core
             return program;
         }
 
+        /// <summary>Parses a module definition and its internal functions.</summary>
         private ModuleNode ParseModule()
         {
             var startToken = Current;
@@ -80,10 +100,12 @@ namespace Sage.Core
             return module;
         }
 
+        /// <summary>Parses a single statement or declaration.</summary>
         private AstNode ParseStatement()
         {
             var startToken = Current;
 
+            // Import directive: use module;
             if (Match(TokenType.Keyword_Use))
             {
                 string name = Consume(TokenType.Identifier).Value;
@@ -107,11 +129,13 @@ namespace Sage.Core
             if (Current.Type == TokenType.Keyword_While) return ParseWhileStatement();
             if (Current.Type == TokenType.Keyword_For) return ParseForStatement();
 
+            // Fallback: Expression Statement
             var exprStmt = ParseExpression();
             Consume(TokenType.Semicolon);
             return CreateNode(new ExpressionStatementNode(exprStmt), startToken);
         }
 
+        /// <summary>Parses variable (var) or constant (const) declarations.</summary>
         private VariableDeclarationNode ParseVariableDeclaration()
         {
             var startToken = Current;
@@ -122,13 +146,14 @@ namespace Sage.Core
             Consume(TokenType.Colon);
             string type = ConsumeType();
 
-            Consume(TokenType.Equals, "Variables/Constants must be initialized explicitly.");
+            Consume(TokenType.Equals, "Variables and constants must be initialized explicitly in Sage.");
             var init = ParseExpression();
             Consume(TokenType.Semicolon);
 
             return CreateNode(new VariableDeclarationNode(type, name, init, isConst), startToken);
         }
 
+        /// <summary>Parses if-else conditional branches.</summary>
         private IfNode ParseIfStatement()
         {
             var startToken = Current;
@@ -145,6 +170,7 @@ namespace Sage.Core
             return CreateNode(new IfNode(condition, thenBranch, elseBranch), startToken);
         }
 
+        /// <summary>Parses while loop structures.</summary>
         private WhileNode ParseWhileStatement()
         {
             var startToken = Current;
@@ -156,6 +182,7 @@ namespace Sage.Core
             return CreateNode(new WhileNode(condition, body), startToken);
         }
 
+        /// <summary>Parses C-style for loops.</summary>
         private ForNode ParseForStatement()
         {
             var startToken = Current;
@@ -188,6 +215,7 @@ namespace Sage.Core
             return CreateNode(new ForNode(initializer, condition, increment, ParseBlock()), startToken);
         }
 
+        /// <summary>Parses function declarations, including external C interop functions.</summary>
         private FunctionDeclarationNode ParseFunction(string moduleOwner)
         {
             var startToken = Current;
@@ -221,6 +249,7 @@ namespace Sage.Core
             return CreateNode(new FunctionDeclarationNode(name, retType, parameters, ParseBlock(), moduleOwner), startToken);
         }
 
+        /// <summary>Parses a scoped block of code enclosed in braces.</summary>
         private BlockNode ParseBlock()
         {
             var startToken = Current;
@@ -232,6 +261,7 @@ namespace Sage.Core
             return block;
         }
 
+        /// <summary>Helper to consume and return a valid Sage data type.</summary>
         private string ConsumeType()
         {
             if (Current.Type >= TokenType.Type_I8 && Current.Type <= TokenType.Type_Void)
@@ -243,6 +273,8 @@ namespace Sage.Core
             throw new CompilerException(Current, "S003", $"Expected Type, found {Current.Type}");
         }
 
+        // --- Expression Hierarchy (Operator Precedence) ---
+
         private AstNode ParseExpression() => ParseAssignment();
 
         private AstNode ParseAssignment()
@@ -250,7 +282,7 @@ namespace Sage.Core
             var expr = ParseLogicalOr();
             if (Match(TokenType.Equals))
             {
-                var opToken = Current; // Token do '='
+                var opToken = Current;
                 var value = ParseAssignment();
                 if (expr is IdentifierNode id)
                     return CreateNode(new AssignmentNode(id.Name, value), opToken);
@@ -364,6 +396,7 @@ namespace Sage.Core
             return expr;
         }
 
+        /// <summary>Parses primary expressions: literals, identifiers, and parenthesized expressions.</summary>
         private AstNode ParsePrimary()
         {
             var startToken = Current;
@@ -396,7 +429,7 @@ namespace Sage.Core
             {
                 var expr = ParseExpression();
                 Consume(TokenType.CloseParen);
-                return expr; // Mantém a posição da expressão interna
+                return expr;
             }
 
             throw new CompilerException(Current, "S004", $"Unexpected token: {Current.Type}");

@@ -10,15 +10,22 @@ namespace Sage.Utilities
     /// </summary>
     public static class CompilerLogger
     {
-        /// <summary>Logs a major step in the compilation process (e.g., "1. Tokenizing...").</summary>
+        /// <summary>
+        /// Logs a major milestone in the compilation process to the console.
+        /// </summary>
+        /// <param name="message">The progress message to display.</param>
         public static void LogStep(string message) => Console.WriteLine(message);
 
-        /// <summary>Logs general information about the compilation context.</summary>
+        /// <summary>
+        /// Logs general information regarding the current compilation context.
+        /// </summary>
+        /// <param name="message">The informational message to display.</param>
         public static void LogInfo(string message) => Console.WriteLine($"[INFO] {message}");
 
         /// <summary>
-        /// Logs a non-fatal warning that does not halt the compilation.
+        /// Logs a non-fatal warning in yellow. Warnings do not halt the compilation process.
         /// </summary>
+        /// <param name="message">The warning message to display.</param>
         public static void LogWarning(string message)
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
@@ -27,20 +34,24 @@ namespace Sage.Utilities
         }
 
         /// <summary>
-        /// Logs a specific syntax or semantic error associated with a source token.
-        /// Follows the standard format: file(line,col): error CODE: Message
+        /// Logs a specific code error linked to a source token. 
+        /// Formatted as 'file(line,col): error CODE: Message' for IDE compatibility.
         /// </summary>
+        /// <param name="token">The token where the error was detected.</param>
+        /// <param name="code">The unique Sage error code (e.g., S105).</param>
+        /// <param name="message">A descriptive error message.</param>
         public static void LogError(Token token, string code, string message)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            // Standard format allows IDEs to parse the location automatically
+            // Standard format allows IDEs like VS Code to link directly to the source file
             Console.WriteLine($"main.sg({token.Line},{token.Column}): error {code}: {message}");
             Console.ResetColor();
         }
 
         /// <summary>
-        /// Logs a generic system or infrastructure error (e.g., IO failures).
+        /// Logs a generic system error, such as IO failures or missing environment tools.
         /// </summary>
+        /// <param name="message">The system error message to display.</param>
         public static void LogError(string message)
         {
             Console.ForegroundColor = ConsoleColor.Red;
@@ -49,8 +60,9 @@ namespace Sage.Utilities
         }
 
         /// <summary>
-        /// Logs a successful operation or completed phase.
+        /// Logs a successful operation or phase completion in green.
         /// </summary>
+        /// <param name="message">The success message to display.</param>
         public static void LogSuccess(string message)
         {
             Console.ForegroundColor = ConsoleColor.Green;
@@ -59,21 +71,29 @@ namespace Sage.Utilities
         }
 
         /// <summary>
-        /// Logs a critical failure, handling both Sage-specific and generic C# exceptions.
+        /// Handles and logs critical failures, supporting both Sage-specific and native exceptions.
+        /// Ensures correct line/column reporting even if a token is not available.
         /// </summary>
+        /// <param name="ex">The caught exception to be logged.</param>
         public static void LogFatal(Exception ex)
         {
             Console.ForegroundColor = ConsoleColor.Red;
 
             if (ex is CompilerException sce)
             {
-                // Format the error nicely using our token-based system
-                var token = sce.OffendingToken ?? new Token(TokenType.Unknown, "?", 0, 0);
-                LogError(token, sce.ErrorCode, sce.Message);
+                if (sce.OffendingToken == null)
+                {
+                    // Fallback: Create a virtual token to maintain standard error formatting
+                    var tempToken = new Token(TokenType.Unknown, "", sce.Line, sce.Column);
+                    LogError(tempToken, sce.ErrorCode, sce.Message);
+                }
+                else
+                {
+                    LogError(sce.OffendingToken, sce.ErrorCode, sce.Message);
+                }
             }
             else
             {
-                // Generic system crash
                 Console.WriteLine($"\n[FATAL ERROR] {ex.Message}");
                 if (ex.StackTrace != null)
                 {
@@ -86,8 +106,10 @@ namespace Sage.Utilities
         }
 
         /// <summary>
-        /// Logs internal debug information. Stripped from production builds.
+        /// Logs internal debug information in dark gray. 
+        /// This method is stripped from production builds via the Conditional attribute.
         /// </summary>
+        /// <param name="message">The debug message to display.</param>
         [Conditional("DEBUG")]
         public static void LogDebug(string message)
         {
