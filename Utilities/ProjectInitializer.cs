@@ -9,7 +9,7 @@ public static class ProjectInitializer
 {
     private const string MainTemplate = @"use console;
 
-func main() : none
+func main(): none
 {
     console::print_line(""Hello, World!"");
 }
@@ -45,7 +45,8 @@ func main() : none
             Console.WriteLine();
             CompilerLogger.LogInfo($"Next steps:");
             Console.WriteLine($"  cd {projectName}");
-            Console.WriteLine($"  sage run");
+            Console.WriteLine("  sage run");
+            Console.WriteLine();
         }
         catch (Exception ex)
         {

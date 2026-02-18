@@ -9,22 +9,14 @@ namespace Sage.Ast
     /// <param name="name">The identifier name of the module.</param>
     public class ModuleNode(string name) : AstNode
     {
-        /// <summary>
-        /// Gets the name of the module.
-        /// </summary>
         public string Name { get; } = name;
 
-        /// <summary>
-        /// Gets the list of function declarations defined within this module's scope.
-        /// </summary>
-        public List<FunctionDeclarationNode> Functions { get; } = [];
+        // Lista unificada. Contém FunctionDeclarationNode e ExternBlockNode
+        public List<AstNode> Members { get; } = [];
 
-        /// <summary>
-        /// Dispatches the visitor to the appropriate visit method for this module.
-        /// </summary>
-        /// <typeparam name="T">The return type of the visitor's operation.</typeparam>
-        /// <param name="visitor">An implementation of <see cref="IAstVisitor{T}"/>.</param>
-        /// <returns>The result of the visitor's operation on this node.</returns>
+        // (Opcional) Helper para manter compatibilidade se algum código antigo ainda usar .Functions
+        public IEnumerable<FunctionDeclarationNode> Functions => Members.OfType<FunctionDeclarationNode>();
+
         public override T Accept<T>(IAstVisitor<T> visitor) => visitor.Visit(this);
     }
 }

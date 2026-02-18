@@ -7,13 +7,13 @@ namespace Sage.Ast
     /// This node captures the type, identifier name, initialization expression, 
     /// and the mutability state (var vs. const).
     /// </summary>
-    /// <param name="type">The Sage data type (e.g., "i32", "b8", "f64").</param>
     /// <param name="name">The unique identifier name for the variable or constant.</param>
+    /// <param name="type">The Sage data type (e.g., "i32", "b8", "f64").</param>
     /// <param name="initializer">The expression node providing the mandatory initial value.</param>
     /// <param name="isConstant">True if the declaration is immutable (const), false if mutable (var).</param>
     public class VariableDeclarationNode(
-        string type,
-        string name,
+        string name,       // <--- NOME PRIMEIRO (Para casar com o Parser)
+        string type,       // <--- TIPO DEPOIS
         AstNode initializer,
         bool isConstant) : AstNode
     {
@@ -42,9 +42,6 @@ namespace Sage.Ast
         /// <summary>
         /// Dispatches the visitor to the appropriate visit method for this node.
         /// </summary>
-        /// <typeparam name="T">The return type of the visitor.</typeparam>
-        /// <param name="visitor">The visitor instance implementation.</param>
-        /// <returns>A result of type T produced by the visitor.</returns>
         public override T Accept<T>(IAstVisitor<T> visitor) => visitor.Visit(this);
     }
 }
