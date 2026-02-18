@@ -20,6 +20,8 @@ namespace Sage.Ast
         /// </summary>
         public List<AstNode> Arguments { get; } = arguments;
 
+        public bool IsExternCall { get; set; } = false;
+
         /// <summary>
         /// Dispatches the visitor to the appropriate visit method for this function call.
         /// </summary>

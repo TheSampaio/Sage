@@ -37,6 +37,8 @@ namespace Sage.Interfaces
         /// <summary>Visits a statement that consists of a standalone expression.</summary>
         T Visit(ExpressionStatementNode node);
 
+        T Visit(ExternBlockNode node);
+
         /// <summary>Visits a 'use' directive for module imports.</summary>
         T Visit(UseNode node);
 

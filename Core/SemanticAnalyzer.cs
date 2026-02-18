@@ -5,113 +5,76 @@ using Sage.Utilities;
 
 namespace Sage.Core
 {
-    /// <summary>
-    /// Traverses the Abstract Syntax Tree (AST) to verify the semantic correctness of the program.
-    /// It performs type checking, scope management, and enforces Sage's security and language rules.
-    /// </summary>
-    /// <param name="sharedTable">An optional pre-populated symbol table, useful for multi-module compilation.</param>
     public class SemanticAnalyzer(SymbolTable? sharedTable = null) : IAstVisitor<string>
     {
         private readonly SymbolTable _symbolTable = sharedTable ?? new SymbolTable();
 
-        /// <summary>
-        /// Starts the semantic analysis process on the provided program AST.
-        /// </summary>
-        /// <param name="ast">The root node of the program to analyze.</param>
-        public void Analyze(ProgramNode ast)
-        {
-            ast.Accept(this);
-        }
+        public void Analyze(ProgramNode ast) => ast.Accept(this);
 
         /// <summary>
-        /// Pre-registers all functions and modules in the symbol table. 
-        /// This allows for forward references and cross-module calls.
+        /// Pre-registers module-level symbols to allow forward references and out-of-order calls.
         /// </summary>
-        /// <param name="moduleAst">The AST of the module to register.</param>
         public void RegisterModuleSymbols(ProgramNode moduleAst)
         {
             foreach (var node in moduleAst.Statements.OfType<ModuleNode>())
             {
-                foreach (var func in node.Functions)
+                foreach (var member in node.Members.OfType<FunctionDeclarationNode>())
                 {
-                    // Register both the direct name and the namespaced name
-                    _symbolTable.Define(func.Name, func.ReturnType, isFunction: true, isExtern: func.IsExtern);
-                    _symbolTable.Define($"{node.Name}::{func.Name}", func.ReturnType, isFunction: true, isExtern: func.IsExtern);
+                    // Ensure the AST node knows its owner for later phases
+                    member.ModuleOwner = node.Name;
+                    RegisterFunction(member, node.Name);
                 }
             }
         }
 
-        /// <summary>Determines if a Sage type name represents a numeric value.</summary>
-        private static bool IsNumeric(string type) =>
-            type is "i8" or "u8" or "i16" or "u16" or "i32" or "u32" or "i64" or "u64" or "f32" or "f64";
-
-        /// <summary>Determines if a Sage type name represents a floating-point value.</summary>
-        private static bool IsFloatingPoint(string type) => type is "f32" or "f64";
-
-        /// <summary>
-        /// Determines the "dominant" type between two numeric types to handle implicit promotion.
-        /// For example, adding i32 and f32 results in f32.
-        /// </summary>
-        private static string? GetDominantType(string typeA, string typeB)
+        private void RegisterFunction(FunctionDeclarationNode func, string moduleName = "")
         {
-            var hierarchy = new List<string> { "i8", "u8", "i16", "u16", "i32", "u32", "i64", "u64", "f32", "f64" };
-            int indexA = hierarchy.IndexOf(typeA);
-            int indexB = hierarchy.IndexOf(typeB);
-            if (indexA == -1 || indexB == -1) return null;
-            return hierarchy[Math.Max(indexA, indexB)];
-        }
+            // 1. Define the bare name (e.g., "print_line") for use inside the module itself
+            _symbolTable.Define(func.Name, func.ReturnType, isFunction: true, isExtern: func.IsExtern);
 
-        /// <summary>
-        /// Verifies if a source node's value can be assigned to a target data type.
-        /// Supports implicit numeric promotion for literals.
-        /// </summary>
-        private bool CanAssign(string targetType, AstNode sourceNode)
-        {
-            string sourceType = sourceNode.Accept(this);
-            if (targetType == sourceType) return true;
-
-            if (sourceNode is LiteralNode)
+            // 2. Define the fully qualified name (e.g., "console::print_line") for external use
+            if (!string.IsNullOrEmpty(moduleName))
             {
-                // Allow integer literals to be assigned to floating point variables
-                if (IsFloatingPoint(targetType) && IsNumeric(sourceType)) return true;
+                _symbolTable.Define($"{moduleName}::{func.Name}", func.ReturnType, isFunction: true, isExtern: func.IsExtern);
             }
-
-            if (targetType == "f64" && sourceType == "f32") return true;
-            return false;
         }
 
-        /// <summary>Analyzes the program entry point.</summary>
         public string Visit(ProgramNode node)
         {
             foreach (var stmt in node.Statements) stmt.Accept(this);
             return "none";
         }
 
-        /// <summary>Analyzes a module and its contents.</summary>
         public string Visit(ModuleNode node)
         {
-            foreach (var func in node.Functions)
+            // Internal registration to support recursion within the module
+            foreach (var member in node.Members.OfType<FunctionDeclarationNode>())
             {
-                _symbolTable.Define(func.Name, func.ReturnType, isFunction: true, isExtern: func.IsExtern);
-                _symbolTable.Define($"{node.Name}::{func.Name}", func.ReturnType, isFunction: true, isExtern: func.IsExtern);
+                member.ModuleOwner = node.Name; // IMPORTANT: Tag the node with its module
+                RegisterFunction(member, node.Name);
             }
 
-            foreach (var func in node.Functions) func.Accept(this);
+            foreach (var member in node.Members) member.Accept(this);
             return "none";
         }
 
-        /// <summary>Verifies function signatures, parameters, and body logic.</summary>
         public string Visit(FunctionDeclarationNode node)
         {
+            // If the function wasn't caught by module pre-registration, register it now
             if (!_symbolTable.IsDefinedInCurrentScope(node.Name))
-                _symbolTable.Define(node.Name, node.ReturnType, isFunction: true, isExtern: node.IsExtern);
+            {
+                RegisterFunction(node, node.ModuleOwner);
+            }
 
             _symbolTable.EnterScope();
+
+            // Register parameters
             foreach (var param in node.Parameters)
             {
                 _symbolTable.Define(param.Name, param.Type);
             }
 
+            // Analyze body
             if (!node.IsExtern && node.Body != null)
             {
                 node.Body.Accept(this);
@@ -121,34 +84,82 @@ namespace Sage.Core
             return node.ReturnType;
         }
 
-        /// <summary>Checks function existence and enforces security rules for external calls.</summary>
-        public string Visit(FunctionCallNode node)
+        public string Visit(VariableDeclarationNode node)
         {
-            var symbol = _symbolTable.Resolve(node.Name) ?? throw new CompilerException(node, "S105", $"Function '{node.Name}' not found.");
+            if (_symbolTable.IsDefinedInCurrentScope(node.Name))
+                throw new CompilerException(node, "S102", $"Variable '{node.Name}' is already defined.");
 
-            // Security: Prevent accessing raw C functions if they are abstracted in a module
-            if (symbol.IsExtern && node.Name.Contains("::"))
+            // Check for Type Mismatch
+            if (!TypeSystem.AreTypesCompatible(node.Type, node.Initializer.Accept(this)) &&
+                !IsAutoPromotableLiteral(node.Type, node.Initializer))
             {
-                throw new CompilerException(
-                    node,
-                    "S005",
-                    $"Security Violation: Direct access to extern function '{node.Name}' is prohibited."
-                );
+                string sourceType = node.Initializer.Accept(this);
+                throw new CompilerException(node, "S101", $"Type Mismatch: Cannot assign {sourceType} to {node.Name} (expected {node.Type}).");
             }
 
+            // Tag literals for code gen
+            if (node.Initializer is LiteralNode literal) literal.TypeName = node.Type;
+
+            _symbolTable.Define(node.Name, node.Type);
+            return node.Type;
+        }
+
+        public string Visit(BinaryExpressionNode node)
+        {
+            string lhs = node.Left.Accept(this);
+            string rhs = node.Right.Accept(this);
+
+            if (IsComparisonOp(node.Operator)) return "b8";
+
+            if (IsLogicalOp(node.Operator))
+            {
+                if (lhs != "b8" || rhs != "b8")
+                    throw new CompilerException(node, "S107", "Logical operators require b8.");
+                return "b8";
+            }
+
+            string? dominantType = TypeSystem.GetDominantType(lhs, rhs);
+            return dominantType ?? throw new CompilerException(node, "S108", $"Invalid arithmetic: {lhs} and {rhs}");
+        }
+
+        public string Visit(FunctionCallNode node)
+        {
+            var symbol = _symbolTable.Resolve(node.Name)
+                ?? throw new CompilerException(node, "S105", $"Function '{node.Name}' not found.");
+
+            node.IsExternCall = symbol.IsExtern;
+
             foreach (var arg in node.Arguments) arg.Accept(this);
+
             return symbol.Type;
         }
 
-        /// <summary>Resolves identifier types and ensures they are declared.</summary>
+        // --- Helpers ---
+
+        private static bool IsComparisonOp(TokenType op) =>
+            op is TokenType.EqualEqual or TokenType.NotEqual or TokenType.Less or TokenType.LessEqual or TokenType.Greater or TokenType.GreaterEqual;
+
+        private static bool IsLogicalOp(TokenType op) =>
+            op is TokenType.AmpersandAmpersand or TokenType.PipePipe;
+
+        // Syntactic Sugar: Allows assigning "10" (int) to an f32 variable without explicit casting
+        private bool IsAutoPromotableLiteral(string targetType, AstNode initializer)
+        {
+            if (initializer is not LiteralNode) return false;
+            if (TypeSystem.IsFloatingPoint(targetType) && TypeSystem.IsNumeric(initializer.Accept(this))) return true;
+            return false;
+        }
+
+        // --- Standard Visitor Implementations ---
+
         public string Visit(IdentifierNode node)
         {
-            var symbol = _symbolTable.Resolve(node.Name) ?? throw new CompilerException(node, "S105", $"Identifier '{node.Name}' not declared.");
+            var symbol = _symbolTable.Resolve(node.Name)
+                ?? throw new CompilerException(node, "S105", $"Identifier '{node.Name}' not declared.");
             node.VariableType = symbol.Type;
             return symbol.Type;
         }
 
-        /// <summary>Manages scope for code blocks.</summary>
         public string Visit(BlockNode node)
         {
             _symbolTable.EnterScope();
@@ -157,96 +168,49 @@ namespace Sage.Core
             return "none";
         }
 
-        /// <summary>Validates variable declarations and mandatory initialization.</summary>
-        public string Visit(VariableDeclarationNode node)
-        {
-            if (_symbolTable.IsDefinedInCurrentScope(node.Name))
-                throw new CompilerException(node, "S102", $"Variable '{node.Name}' is already defined.");
-
-            if (!CanAssign(node.Type, node.Initializer))
-            {
-                string sourceType = node.Initializer.Accept(this);
-                throw new CompilerException(node, "S101", $"Type Mismatch: Cannot assign {sourceType} to {node.Type}.");
-            }
-
-            if (node.Initializer is LiteralNode literal) literal.TypeName = node.Type;
-
-            _symbolTable.Define(node.Name, node.Type);
-            return node.Type;
-        }
-
-        /// <summary>Validates type safety during assignment.</summary>
         public string Visit(AssignmentNode node)
         {
-            var symbol = _symbolTable.Resolve(node.Name) ?? throw new CompilerException(node, "S105", $"Variable '{node.Name}' not declared.");
+            var symbol = _symbolTable.Resolve(node.Name)
+                ?? throw new CompilerException(node, "S105", $"Variable '{node.Name}' not declared.");
             node.VariableType = symbol.Type;
 
-            if (!CanAssign(symbol.Type, node.Expression))
-            {
-                string exprType = node.Expression.Accept(this);
-                throw new CompilerException(node, "S108", $"Type Mismatch: Cannot assign {exprType} to {symbol.Type}.");
-            }
+            if (!TypeSystem.AreTypesCompatible(symbol.Type, node.Expression.Accept(this)))
+                throw new CompilerException(node, "S108", $"Cannot assign {node.Expression.Accept(this)} to {symbol.Type}.");
 
-            if (node.Expression is LiteralNode literal) literal.TypeName = symbol.Type;
             return symbol.Type;
         }
 
-        /// <summary>Performs type checking for binary operations and determines resulting types.</summary>
-        public string Visit(BinaryExpressionNode node)
+        public string Visit(ExternBlockNode node)
         {
-            string lhs = node.Left.Accept(this);
-            string rhs = node.Right.Accept(this);
-
-            // Comparison operators always return boolean (b8)
-            if (node.Operator is TokenType.EqualEqual or TokenType.NotEqual or TokenType.Less or
-                TokenType.LessEqual or TokenType.Greater or TokenType.GreaterEqual) return "b8";
-
-            // Logical operators require boolean operands
-            if (node.Operator is TokenType.AmpersandAmpersand or TokenType.PipePipe)
+            // Scoped extern definitions (private to the module/block where they are defined)
+            foreach (var decl in node.Declarations.OfType<FunctionDeclarationNode>())
             {
-                if (lhs != "b8" || rhs != "b8")
-                    throw new CompilerException(node, "S107", "Logical operators require b8.");
-                return "b8";
+                // Extern functions in modules are usually static/namespaced
+                _symbolTable.Define($"{node.Alias}::{decl.Name}", decl.ReturnType, isFunction: true, isExtern: true);
             }
-
-            // Arithmetic promotion
-            string? dominantType = GetDominantType(lhs, rhs) ?? throw new CompilerException(node, "S108", $"Invalid arithmetic: {lhs} and {rhs}");
-            return dominantType;
-        }
-
-        /// <summary>Validates if-statement condition types.</summary>
-        public string Visit(IfNode node)
-        {
-            if (node.Condition.Accept(this) != "b8")
-                throw new CompilerException(node, "S103", "Condition must be b8.");
-            node.ThenBranch.Accept(this);
-            node.ElseBranch?.Accept(this);
             return "none";
         }
 
-        /// <summary>Validates while-loop condition types.</summary>
-        public string Visit(WhileNode node)
-        {
-            if (node.Condition.Accept(this) != "b8")
-                throw new CompilerException(node, "S104", "Condition must be b8.");
-            node.Body.Accept(this);
-            return "none";
-        }
+        public string Visit(IfNode node) { CheckCondition(node.Condition); node.ThenBranch.Accept(this); node.ElseBranch?.Accept(this); return "none"; }
+        public string Visit(WhileNode node) { CheckCondition(node.Condition); node.Body.Accept(this); return "none"; }
 
-        /// <summary>Validates for-loop structure and types.</summary>
         public string Visit(ForNode node)
         {
             _symbolTable.EnterScope();
             node.Initializer?.Accept(this);
-            if (node.Condition != null && node.Condition.Accept(this) != "b8")
-                throw new CompilerException(node, "S104", "Condition must be b8.");
+            if (node.Condition != null) CheckCondition(node.Condition);
             node.Increment?.Accept(this);
             node.Body.Accept(this);
             _symbolTable.ExitScope();
             return "none";
         }
 
-        // --- Literal and Leaf Nodes ---
+        private void CheckCondition(AstNode condition)
+        {
+            if (condition.Accept(this) != "b8")
+                throw new CompilerException(condition, "S104", "Condition must be b8.");
+        }
+
         public string Visit(LiteralNode node) => node.TypeName;
         public string Visit(ReturnNode node) => node.Expression.Accept(this);
         public string Visit(ExpressionStatementNode node) => node.Expression.Accept(this);

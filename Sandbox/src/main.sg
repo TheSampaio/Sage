@@ -1,13 +1,36 @@
 use console;
+use memory;
 
 func main(): none
 {
     // console::clear();
-    console::print_line("--- SAGE CONSOLE TEST ---");
-    console::print("Digite algo e aperte Enter: ");
-    
-    var tecla: i32 = console::read();
-    
+    console::print_line("=== Sage FFI Integration Test ===");
     console::print_line("");
-    console::print_line("Obrigado por testar a Sage!");
+
+    // --- Teste 1: Alocação (Memory Module) ---
+    console::print("[1] Allocating buffer (64 bytes)... ");
+    
+    // Alocamos memória crua (none* / void*) e atribuímos a uma string (str / char*)
+    // Isso testa se o sistema de tipos aceita conversão de void*
+    var buffer: str = memory::alloc(64);
+    
+    console::print_line("OK.");
+
+    // --- Teste 2: Input (Console Module + Pointer Passing) ---
+    console::print("[2] Enter your name: ");
+    
+    // Passamos o ponteiro criado em 'memory' para a função de 'console'
+    // Se o linker estiver errado, isso daria SegFault ou erro de tipo
+    console::read_line(buffer);
+
+    // --- Teste 3: Output e Verificação ---
+    console::print("[3] You typed: ");
+    console::print_line(buffer);
+
+    // --- Teste 4: Liberação de Memória ---
+    console::print("[4] Releasing memory... ");
+    memory::release(buffer);
+    console::print_line("OK.");
+    
+    console::print_line("\nTest Suite Completed Successfully.");
 }

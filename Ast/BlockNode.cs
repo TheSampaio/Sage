@@ -6,12 +6,12 @@ namespace Sage.Ast
     /// Represents a collection of statements enclosed within a scope, 
     /// typically defined by curly braces {}.
     /// </summary>
-    public class BlockNode : AstNode
+    public class BlockNode(List<AstNode> statements) : AstNode
     {
         /// <summary>
         /// Gets the list of AST nodes (statements or declarations) contained within this block.
         /// </summary>
-        public List<AstNode> Statements { get; } = [];
+        public List<AstNode> Statements { get; } = statements;
 
         /// <summary>
         /// Dispatches the visitor to the appropriate visit method for this block.

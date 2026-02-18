@@ -118,6 +118,15 @@ namespace Sage.Utilities
         /// <summary>Wraps an expression used as a statement.</summary>
         public object Visit(ExpressionStatementNode node) => node.Expression.Accept(this);
 
+        /// <summary>Visits an external FFI block declaration.</summary>
+        public object Visit(ExternBlockNode node) => new
+        {
+            Type = "ExternBlock",
+            node.Alias,
+            node.Header,
+            Declarations = node.Declarations.Select(d => d.Accept(this))
+        };
+
         /// <summary>Visits a binary operation.</summary>
         public object Visit(BinaryExpressionNode node) => new
         {

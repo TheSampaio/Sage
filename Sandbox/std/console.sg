@@ -1,15 +1,21 @@
 /// Standard Library: Console
-/// Provides high-level abstractions for terminal I/O, 
+/// Provides high-level abstractions for terminal I/O,
 /// screen manipulation, and system commands.
 module console
 {
-    // --- Native C Bindings ---
-    // These functions link directly to the C Standard Library (libc).
-    
-    extern func printf(format: str, arg: str): i32;   // Formatted output to stdout
-    extern func system(command: str): i32;            // Executes shell/system commands
-    extern func getchar(): i32;                       // Reads a single character from stdin
-    extern func scanf(format: str, buffer: str): i32; // Reads formatted input from stdin
+    // --- Native C Bindings (Private to this module) ---
+
+    extern libc_stdio("stdio.h")
+    {
+        func printf(format: str, arg: str): i32;
+        func scanf(format: str, buffer: str): i32;
+        func getchar(): i32;
+    }
+
+    extern libc_stdlib("stdlib.h")
+    {
+        func system(command: str): i32;
+    }
 
     // --- High-Level API ---
 
@@ -17,45 +23,47 @@ module console
     /// Uses ANSI escape sequences for cross-platform compatibility.
     func clear(): none
     {
-        printf("\x1B[2J\x1B[H", "");
+        libc_stdio::printf("\x1B[2J\x1B[H", "");
     }
 
     /// Sets the cursor position on the terminal grid.
-    /// Note: Coordinates x and y require variadic support for dynamic mapping.
+    /// NOTE: This is a placeholder until variadic support exists.
     func position(x: i32, y: i32): none
     {
-        printf("\x1B[%d;%dH", "");
+        // Proper variadic binding required to fully support this
+        libc_stdio::printf("\x1B[%d;%dH", "");
     }
 
     /// Writes the provided text to the standard output.
     func print(text: str): none
     {
-        printf("%s", text);
+        libc_stdio::printf("%s", text);
     }
 
     /// Writes text to the standard output followed by a newline character.
     func print_line(text: str): none
     {
-        printf("%s\n", text);
+        libc_stdio::printf("%s\n", text);
     }
 
     /// Sets the physical dimensions of the console window.
-    /// Current implementation is optimized for Windows environments.
+    /// Current implementation is Windows-specific.
     func size(cols: i32, lines: i32): none
     {
-        system("mode con: cols=80 lines=25"); 
+        // NOTE: Hardcoded values � needs formatting support
+        libc_stdlib::system("mode con: cols=80 lines=25");
     }
 
     /// Captures a single character input from the user.
     /// Returns the ASCII/Integer value of the key pressed.
     func read(): i32
     {
-        return getchar();
+        return libc_stdio::getchar();
     }
 
-    /// Reads a string from the standard input into the provided buffer.
+    /// Reads a string from standard input into the provided buffer.
     func read_line(buffer: str): none
     {
-        scanf("%s", buffer);
+        libc_stdio::scanf("%s", buffer);
     }
 }

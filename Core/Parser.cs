@@ -64,6 +64,30 @@ namespace Sage.Core
         }
 
         /// <summary>
+        /// Checks if the current token represents a known data type.
+        /// This is used to detect the start of a Variable Declaration.
+        /// </summary>
+        /// <summary>
+        /// Checks if the current token represents a known data type.
+        /// Based strictly on Sage.Enums.TokenType.
+        /// </summary>
+        private bool IsType(Token token)
+        {
+            return token.Type is
+                // Signed Integers
+                TokenType.Type_I8 or TokenType.Type_I16 or TokenType.Type_I32 or TokenType.Type_I64 or
+                // Unsigned Integers
+                TokenType.Type_U8 or TokenType.Type_U16 or TokenType.Type_U32 or TokenType.Type_U64 or
+                // Floating Point
+                TokenType.Type_F32 or TokenType.Type_F64 or
+                // Boolean & Text & Void
+                TokenType.Type_B8 or
+                TokenType.Type_C8 or TokenType.Type_C16 or TokenType.Type_C32 or
+                TokenType.Type_Str or
+                TokenType.Type_Void;
+        }
+
+        /// <summary>
         /// Entry point of the parser. Processes the token stream into a <see cref="ProgramNode"/>.
         /// </summary>
         public ProgramNode Parse()
@@ -88,24 +112,101 @@ namespace Sage.Core
             Consume(TokenType.OpenBrace);
 
             var module = CreateNode(new ModuleNode(name), startToken);
+
             while (Current.Type != TokenType.CloseBrace && Current.Type != TokenType.EndOfFile)
             {
-                if (Current.Type == TokenType.Keyword_Func || Current.Type == TokenType.Keyword_Extern)
-                    module.Functions.Add(ParseFunction(module.Name));
+                if (Current.Type == TokenType.Keyword_Func)
+                {
+                    // CORREÇÃO: Adicione à lista unificada 'Members'
+                    module.Members.Add(ParseFunction(module.Name));
+                }
+                else if (Current.Type == TokenType.Keyword_Extern)
+                {
+                    // Já estava correto, adicionando a Members
+                    module.Members.Add(ParseExternBlock());
+                }
                 else
-                    throw new CompilerException(Current, "S002", "Only functions are supported in modules.");
+                {
+                    throw new CompilerException(Current, "S002", "Only functions and extern blocks are supported in modules.");
+                }
             }
 
             Consume(TokenType.CloseBrace);
             return module;
         }
 
+        /// <summary>
+        /// Parses an FFI block: extern alias("header") { ... }
+        /// </summary>
+        private ExternBlockNode ParseExternBlock()
+        {
+            var startToken = Current;
+            Consume(TokenType.Keyword_Extern);
+
+            // 1. Alias (namespace local)
+            string alias = Consume(TokenType.Identifier).Value;
+
+            // 2. Header File ("stdio.h")
+            Consume(TokenType.OpenParen);
+            string header = Consume(TokenType.String).Value;
+            Consume(TokenType.CloseParen);
+
+            Consume(TokenType.OpenBrace);
+
+            var declarations = new List<AstNode>();
+
+            while (Current.Type != TokenType.CloseBrace && Current.Type != TokenType.EndOfFile)
+            {
+                if (Match(TokenType.Keyword_Func))
+                {
+                    // Parse de função externa dentro do bloco
+                    // Reutilizamos a lógica de função, mas forçamos isExtern = true
+                    // E o nome será registrado no SemanticAnalyzer como alias::funcName
+                    string funcName = Consume(TokenType.Identifier).Value;
+                    Consume(TokenType.OpenParen);
+
+                    var parameters = new List<ParameterNode>();
+                    if (Current.Type != TokenType.CloseParen)
+                    {
+                        do
+                        {
+                            string pName = Consume(TokenType.Identifier).Value;
+                            Consume(TokenType.Colon);
+                            string pType = ConsumeType();
+                            parameters.Add(new ParameterNode(pName, pType));
+                        } while (Match(TokenType.Comma));
+                    }
+                    Consume(TokenType.CloseParen);
+
+                    Consume(TokenType.Colon);
+                    string retType = ConsumeType();
+                    Consume(TokenType.Semicolon); // Externs não tem corpo
+
+                    // Criamos a declaração. Note que ModuleOwner aqui será o ALIAS do extern para resolução interna
+                    var funcNode = new FunctionDeclarationNode(funcName, retType, parameters, null!, alias)
+                    {
+                        IsExtern = true
+                    };
+                    declarations.Add(CreateNode(funcNode, startToken));
+                }
+                // TODO: Adicionar suporte a 'struct' aqui no futuro
+                else
+                {
+                    throw new CompilerException(Current, "S006", "Only function declarations are allowed inside extern blocks for now.");
+                }
+            }
+
+            Consume(TokenType.CloseBrace);
+            return CreateNode(new ExternBlockNode(alias, header, declarations), startToken);
+        }
+
+        /// <summary>Parses a single statement or declaration.</summary>
         /// <summary>Parses a single statement or declaration.</summary>
         private AstNode ParseStatement()
         {
             var startToken = Current;
 
-            // Import directive: use module;
+            // 1. Import directive
             if (Match(TokenType.Keyword_Use))
             {
                 string name = Consume(TokenType.Identifier).Value;
@@ -113,7 +214,13 @@ namespace Sage.Core
                 return CreateNode(new UseNode(name), startToken);
             }
 
+            // 2. Function definition
             if (Current.Type == TokenType.Keyword_Func) return ParseFunction("");
+
+            // 3. Control Flow
+            if (Current.Type == TokenType.Keyword_If) return ParseIf();
+            if (Current.Type == TokenType.Keyword_While) return ParseWhile();
+            if (Current.Type == TokenType.Keyword_For) return ParseFor();
 
             if (Match(TokenType.Keyword_Return))
             {
@@ -122,35 +229,148 @@ namespace Sage.Core
                 return CreateNode(new ReturnNode(expr), startToken);
             }
 
+            // 4. Variable Declaration
+            // Verifica se começa com 'var' ou 'const'
             if (Current.Type == TokenType.Keyword_Var || Current.Type == TokenType.Keyword_Const)
+            {
                 return ParseVariableDeclaration();
+            }
 
-            if (Current.Type == TokenType.Keyword_If) return ParseIfStatement();
-            if (Current.Type == TokenType.Keyword_While) return ParseWhileStatement();
-            if (Current.Type == TokenType.Keyword_For) return ParseForStatement();
-
-            // Fallback: Expression Statement
-            var exprStmt = ParseExpression();
+            // 5. Expression Statement (Assignments, Calls)
+            // Ex: x = 1; (Assignment usa Equals, mas é parseado dentro de ParseExpression -> ParseAssignment)
+            var expression = ParseExpression();
             Consume(TokenType.Semicolon);
-            return CreateNode(new ExpressionStatementNode(exprStmt), startToken);
+            return CreateNode(new ExpressionStatementNode(expression), startToken);
+        }
+
+        /// <summary>Parses an 'if' statement, including optional 'else' blocks.</summary>
+        private IfNode ParseIf()
+        {
+            var startToken = Current;
+            Consume(TokenType.Keyword_If);
+            Consume(TokenType.OpenParen);
+            var condition = ParseExpression();
+            Consume(TokenType.CloseParen);
+
+            var thenBranch = ParseBlock();
+            AstNode? elseBranch = null;
+
+            if (Match(TokenType.Keyword_Else))
+            {
+                // Suporte para 'else if' recursivo
+                if (Current.Type == TokenType.Keyword_If)
+                {
+                    elseBranch = ParseIf();
+                }
+                else
+                {
+                    elseBranch = ParseBlock();
+                }
+            }
+
+            return CreateNode(new IfNode(condition, thenBranch, elseBranch), startToken);
+        }
+
+        /// <summary>Parses a 'while' loop.</summary>
+        private WhileNode ParseWhile()
+        {
+            var startToken = Current;
+            Consume(TokenType.Keyword_While);
+            Consume(TokenType.OpenParen);
+            var condition = ParseExpression();
+            Consume(TokenType.CloseParen);
+
+            var body = ParseBlock();
+            return CreateNode(new WhileNode(condition, body), startToken);
+        }
+
+        /// <summary>Parses a 'for' loop: for(init; condition; increment) { ... }</summary>
+        private ForNode ParseFor()
+        {
+            var startToken = Current;
+            Consume(TokenType.Keyword_For);
+            Consume(TokenType.OpenParen);
+
+            // 1. Initializer (pode ser vazio, declaração ou expressão)
+            AstNode? initializer = null;
+            if (Current.Type != TokenType.Semicolon)
+            {
+                if (IsType(Current))
+                    initializer = ParseVariableDeclaration(); // int i = 0;
+                else
+                    initializer = ParseExpression(); // i = 0
+
+                // ParseVariableDeclaration já consome o ponto e vírgula interno se for declaração?
+                // Geralmente VariableDeclaration consome o ';'. Se for expressão pura, precisamos consumir.
+                // Ajuste conforme sua implementação de ParseVariableDeclaration. 
+                // Assumindo que ParseVariableDeclaration consome ';', mas ParseExpression não.
+
+                // NOTA: Para simplificar, vamos assumir que ParseVariableDeclaration consome ';'.
+                // Se foi expressão, precisamos consumir.
+                if (initializer is not VariableDeclarationNode)
+                {
+                    Consume(TokenType.Semicolon);
+                }
+            }
+            else
+            {
+                Consume(TokenType.Semicolon); // Vazio
+            }
+
+            // 2. Condition
+            AstNode? condition = null;
+            if (Current.Type != TokenType.Semicolon)
+            {
+                condition = ParseExpression();
+            }
+            Consume(TokenType.Semicolon);
+
+            // 3. Increment
+            AstNode? increment = null;
+            if (Current.Type != TokenType.CloseParen)
+            {
+                increment = ParseExpression();
+            }
+            Consume(TokenType.CloseParen);
+
+            var body = ParseBlock();
+
+            return CreateNode(new ForNode(initializer, condition, increment, body), startToken);
         }
 
         /// <summary>Parses variable (var) or constant (const) declarations.</summary>
+        /// <summary>
+        /// Parses a variable declaration: var name: type = value;
+        /// </summary>
         private VariableDeclarationNode ParseVariableDeclaration()
         {
             var startToken = Current;
-            bool isConst = Match(TokenType.Keyword_Const);
-            if (!isConst) Consume(TokenType.Keyword_Var);
+            bool isConstant = false;
 
+            // 1. Consume Keyword (var / const)
+            if (Match(TokenType.Keyword_Const))
+            {
+                isConstant = true;
+            }
+            else
+            {
+                Consume(TokenType.Keyword_Var, "Expected 'var' or 'const'.");
+            }
+
+            // 2. Identifier Name
             string name = Consume(TokenType.Identifier).Value;
-            Consume(TokenType.Colon);
-            string type = ConsumeType();
 
-            Consume(TokenType.Equals, "Variables and constants must be initialized explicitly in Sage.");
-            var init = ParseExpression();
+            // 3. Type Annotation
+            Consume(TokenType.Colon, "Expected ':' after variable name.");
+            string type = ConsumeType(); // Retorna "str", "i32", "none*", etc.
+
+            // 4. Initializer
+            Consume(TokenType.Equals, "Expected '=' for initialization.");
+            var initializer = ParseExpression();
+
             Consume(TokenType.Semicolon);
 
-            return CreateNode(new VariableDeclarationNode(type, name, init, isConst), startToken);
+            return CreateNode(new VariableDeclarationNode(name, type, initializer, isConstant), startToken);
         }
 
         /// <summary>Parses if-else conditional branches.</summary>
@@ -169,6 +389,13 @@ namespace Sage.Core
 
             return CreateNode(new IfNode(condition, thenBranch, elseBranch), startToken);
         }
+
+
+
+
+
+
+
 
         /// <summary>Parses while loop structures.</summary>
         private WhileNode ParseWhileStatement()
@@ -254,23 +481,51 @@ namespace Sage.Core
         {
             var startToken = Current;
             Consume(TokenType.OpenBrace);
-            var block = CreateNode(new BlockNode(), startToken);
+
+            var statements = new List<AstNode>();
             while (Current.Type != TokenType.CloseBrace && Current.Type != TokenType.EndOfFile)
-                block.Statements.Add(ParseStatement());
+            {
+                statements.Add(ParseStatement());
+            }
+
             Consume(TokenType.CloseBrace);
-            return block;
+            // Cria o nó já com a lista completa, garantindo imutabilidade se necessário
+            return CreateNode(new BlockNode(statements), startToken);
         }
 
         /// <summary>Helper to consume and return a valid Sage data type.</summary>
+        /// <summary>
+        /// Consumes a type token and handles pointer syntax (e.g., "i32", "none*", "u8**").
+        /// </summary>
+        /// <summary>
+        /// Consumes a type token and handles pointer syntax (e.g., "i32", "none*", "u8**").
+        /// </summary>
         private string ConsumeType()
         {
-            if (Current.Type >= TokenType.Type_I8 && Current.Type <= TokenType.Type_Void)
+            // 1. Verifica se começa com um tipo válido (int, float, void, struct name...)
+            if (!IsType(Current))
             {
-                string v = Current.Value;
-                _pos++;
-                return v;
+                // Se não for tipo primitivo, pode ser um Identifier (nome de struct/enum)
+                // Mas por enquanto vamos nos ater aos primitivos definidos no seu Enum + Void
+                if (Current.Type != TokenType.Identifier)
+                {
+                    throw new CompilerException(Current, "S003", $"Expected a type but found {Current.Type} ('{Current.Value}')");
+                }
             }
-            throw new CompilerException(Current, "S003", $"Expected Type, found {Current.Type}");
+
+            // 2. Consome o tipo base (ex: "none", "i32", "str")
+            string type = Current.Value;
+            _pos++; // Avança manualmente (Consume sem validação de tipo fixo)
+
+            // 3. IMPLEMENTAÇÃO DE PONTEIROS
+            // Enquanto o próximo token for um Asterisco (*), anexa ao tipo.
+            while (Current.Type == TokenType.Asterisk)
+            {
+                type += "*";
+                _pos++; // Consome o '*'
+            }
+
+            return type;
         }
 
         // --- Expression Hierarchy (Operator Precedence) ---
