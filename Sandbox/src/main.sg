@@ -1,36 +1,51 @@
 use console;
-use memory;
+
+// Can be defined outside of functions, but not required
+// struct Person
+// {
+//     name: str;
+//     age: i32;
+//     height: f32;
+//     female: b8;
+// }
 
 func main(): none
 {
-    // console::clear();
-    console::print_line("=== Sage FFI Integration Test ===");
-    console::print_line("");
+    // Variaveis na Sage sempre precisam ser inicializadas
+    var loops: i32 = 0;
+    const max: i32 = 5;
 
-    // --- Teste 1: Alocação (Memory Module) ---
-    console::print("[1] Allocating buffer (64 bytes)... ");
-    
-    // Alocamos memória crua (none* / void*) e atribuímos a uma string (str / char*)
-    // Isso testa se o sistema de tipos aceita conversão de void*
-    var buffer: str = memory::alloc(64);
-    
-    console::print_line("OK.");
+    struct Person
+    {
+        name: str;
+        age: i32;
+        height: f32;
+        female: b8;
+    }
 
-    // --- Teste 2: Input (Console Module + Pointer Passing) ---
-    console::print("[2] Enter your name: ");
-    
-    // Passamos o ponteiro criado em 'memory' para a função de 'console'
-    // Se o linker estiver errado, isso daria SegFault ou erro de tipo
-    console::read_line(buffer);
+    var person1: Person = {
+        name = "Alice",
+        age = 30,
+        height = 1.80,
+        female = true
+    };
 
-    // --- Teste 3: Output e Verificação ---
-    console::print("[3] You typed: ");
-    console::print_line(buffer);
+    while (loops < max)
+    {
+        if (loops % 2 == 0)
+        {
+            console::print_line("Even: {loops}");
+        }
+        else
+        {
+            console::print_line("Odd: {loops}");
+        }
 
-    // --- Teste 4: Liberação de Memória ---
-    console::print("[4] Releasing memory... ");
-    memory::release(buffer);
-    console::print_line("OK.");
-    
-    console::print_line("\nTest Suite Completed Successfully.");
+        loops++;
+    }
+
+    for (var i: i32 = 0; i < max; i++)
+    {
+        console::print_line("Counter: {max}");
+    }
 }

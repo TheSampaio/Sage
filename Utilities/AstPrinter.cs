@@ -70,7 +70,7 @@ namespace Sage.Utilities
             node.IsConstant,
             node.Name,
             DataType = node.Type,
-            Initializer = node.Initializer.Accept(this)
+            Initializer = node.Initializer?.Accept(this)
         };
 
         /// <summary>Visits an assignment operation.</summary>
@@ -181,5 +181,20 @@ namespace Sage.Utilities
 
         /// <summary>Visits a string literal containing interpolation.</summary>
         public object Visit(InterpolatedStringNode node) => new { Type = "InterpolatedString" };
+
+        /// <summary>Visits a struct declaration and its fields.</summary>
+        public object Visit(StructDeclarationNode node) => new
+        {
+            Type = "StructDeclaration",
+            node.Name,
+            Fields = node.Fields.Select(f => f.Accept(this))
+        };
+
+        /// <summary>Visits a struct initialization literal.</summary>
+        public object Visit(StructInitializationNode node) => new
+        {
+            Type = "StructInitialization",
+            Fields = node.Fields.ToDictionary(k => k.Key, v => v.Value.Accept(this))
+        };
     }
 }

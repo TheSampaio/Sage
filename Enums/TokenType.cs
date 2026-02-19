@@ -21,6 +21,7 @@
         Keyword_Else,
         Keyword_While,
         Keyword_For,
+        Keyword_Struct,
 
         // --- Signed Integers ---
         Type_I8,

@@ -42,6 +42,7 @@ namespace Sage.Core
         { "else", TokenType.Keyword_Else },
         { "while", TokenType.Keyword_While },
         { "for", TokenType.Keyword_For },
+        { "struct", TokenType.Keyword_Struct },
         // Types
         { "i8", TokenType.Type_I8 }, { "u8", TokenType.Type_U8 },
         { "i16", TokenType.Type_I16 }, { "u16", TokenType.Type_U16 },
@@ -49,7 +50,7 @@ namespace Sage.Core
         { "i64", TokenType.Type_I64 }, { "u64", TokenType.Type_U64 },
         { "f32", TokenType.Type_F32 }, { "f64", TokenType.Type_F64 },
         { "b8", TokenType.Type_B8 }, { "str", TokenType.Type_Str },
-        { "none", TokenType.Type_Void }
+        { "none", TokenType.Type_Void },
     };
 
         /// <summary>

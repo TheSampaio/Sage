@@ -77,5 +77,11 @@ namespace Sage.Interfaces
 
         /// <summary>Visits a string containing interpolation markers.</summary>
         T Visit(InterpolatedStringNode node);
+
+        /// <summary>Visits a struct declaration.</summary>
+        T Visit(StructDeclarationNode node);
+
+        /// <summary>Visits a struct initialization.</summary>
+        T Visit(StructInitializationNode node);
     }
 }

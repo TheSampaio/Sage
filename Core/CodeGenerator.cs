@@ -1,4 +1,5 @@
 ﻿using Sage.Ast;
+using Sage.Enums;
 using Sage.Interfaces;
 using System.Text;
 
@@ -138,7 +139,8 @@ namespace Sage.Core
         {
             _usesTypes = true;
             string prefix = node.IsConstant ? "const " : "";
-            return $"{Indent}{prefix}{TypeSystem.ToCType(node.Type)} {node.Name} = {node.Initializer.Accept(this)};\n";
+            string init = node.Initializer != null ? $" = {node.Initializer.Accept(this)}" : "";
+            return $"{Indent}{prefix}{TypeSystem.ToCType(node.Type)} {node.Name}{init};\n";
         }
 
         public string Visit(LiteralNode node)
@@ -198,15 +200,162 @@ namespace Sage.Core
         public string Visit(ReturnNode node) => $"{Indent}return {node.Expression.Accept(this)};\n";
         public string Visit(ExpressionStatementNode node) => $"{Indent}{node.Expression.Accept(this)};\n";
         public string Visit(UseNode node) => $"#include \"{node.Module}.h\"\n";
-        public string Visit(BinaryExpressionNode node) => $"({node.Left.Accept(this)} + {node.Right.Accept(this)})";
+
+        public string Visit(BinaryExpressionNode node)
+        {
+            string op = node.Operator switch
+            {
+                TokenType.Plus => "+",
+                TokenType.Minus => "-",
+                TokenType.Asterisk => "*",
+                TokenType.Slash => "/",
+                TokenType.Percent => "%",
+                TokenType.EqualEqual => "==",
+                TokenType.NotEqual => "!=",
+                TokenType.Less => "<",
+                TokenType.LessEqual => "<=",
+                TokenType.Greater => ">",
+                TokenType.GreaterEqual => ">=",
+                TokenType.AmpersandAmpersand => "&&",
+                TokenType.PipePipe => "||",
+                _ => "+"
+            };
+
+            return $"({node.Left.Accept(this)} {op} {node.Right.Accept(this)})";
+        }
+
         public string Visit(CastExpressionNode node) => $"(({TypeSystem.ToCType(node.TargetType)}){node.Expression.Accept(this)})";
         public string Visit(ExternBlockNode node) { _requiredHeaders.Add(node.Header); return ""; }
 
-        // Future/Unimplemented
-        public string Visit(IfNode node) => "";
-        public string Visit(WhileNode node) => "";
-        public string Visit(ForNode node) => "";
-        public string Visit(UnaryExpressionNode node) => "";
-        public string Visit(InterpolatedStringNode node) => "";
+        public string Visit(IfNode node)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine($"{Indent}if ({node.Condition.Accept(this)})");
+            sb.Append(node.ThenBranch.Accept(this));
+
+            if (node.ElseBranch != null)
+            {
+                if (node.ElseBranch is IfNode)
+                {
+                    sb.Append($"{Indent}else ");
+                    sb.Append(node.ElseBranch.Accept(this).TrimStart());
+                }
+                else
+                {
+                    sb.AppendLine($"{Indent}else");
+                    sb.Append(node.ElseBranch.Accept(this));
+                }
+            }
+
+            return sb.ToString();
+        }
+
+        public string Visit(WhileNode node)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine($"{Indent}while ({node.Condition.Accept(this)})");
+            sb.Append(node.Body.Accept(this));
+            return sb.ToString();
+        }
+
+        public string Visit(ForNode node)
+        {
+            var sb = new StringBuilder();
+
+            // Trim semi-colons and newlines to prevent double-printing inside the 'for' signature
+            string init = node.Initializer != null ? node.Initializer.Accept(this).Trim().TrimEnd(';') : "";
+            string cond = node.Condition != null ? node.Condition.Accept(this) : "";
+            string inc = node.Increment != null ? node.Increment.Accept(this).Trim().TrimEnd(';') : "";
+
+            sb.AppendLine($"{Indent}for ({init}; {cond}; {inc})");
+            sb.Append(node.Body.Accept(this));
+            return sb.ToString();
+        }
+
+        public string Visit(UnaryExpressionNode node)
+        {
+            string op = node.Operator switch
+            {
+                TokenType.PlusPlus => "++",
+                TokenType.Minus => "-",
+                TokenType.Bang => "!",
+                _ => ""
+            };
+
+            return node.IsPostfix
+                ? $"{node.Operand.Accept(this)}{op}"
+                : $"{op}{node.Operand.Accept(this)}";
+        }
+
+        public string Visit(InterpolatedStringNode node)
+        {
+            _requiredHeaders.Add("stdio.h");
+
+            var formatString = new StringBuilder();
+            var arguments = new List<string>();
+
+            foreach (var part in node.Parts)
+            {
+                if (part is LiteralNode lit && lit.TypeName == "string")
+                {
+                    formatString.Append(lit.Value);
+                }
+                else
+                {
+                    // Map the resolved Sage type to a C printf specifier
+                    string specifier = part.VariableType switch
+                    {
+                        "i32" or "i16" or "i8" => "%d",
+                        "u32" or "u16" or "u8" => "%u",
+                        "i64" => "%lld",
+                        "u64" => "%llu",
+                        "f32" or "f64" => "%f",
+                        "str" => "%s",
+                        _ => "%d" // Default fallback
+                    };
+
+                    formatString.Append(specifier);
+                    arguments.Add(part.Accept(this));
+                }
+            }
+
+            string argsC = arguments.Count > 0 ? ", " + string.Join(", ", arguments) : "";
+
+            // Generate a GNU C Statement Expression to format and return the temporary buffer inline
+            return $"({{ static char _buf[512]; snprintf(_buf, sizeof(_buf), \"{formatString}\"{argsC}); _buf; }})";
+        }
+
+        public string Visit(StructDeclarationNode node)
+        {
+            _usesTypes = true;
+            var sb = new StringBuilder();
+            sb.AppendLine($"{Indent}typedef struct {node.Name} {{");
+            _indent++;
+            foreach (var field in node.Fields)
+            {
+                sb.AppendLine($"{Indent}{TypeSystem.ToCType(field.Type)} {field.Name};");
+            }
+            _indent--;
+            sb.AppendLine($"{Indent}}} {node.Name};\n");
+            return sb.ToString();
+        }
+
+        public string Visit(StructInitializationNode node)
+        {
+            _usesTypes = true;
+            var sb = new StringBuilder();
+            sb.Append("{ ");
+
+            var initList = new List<string>();
+            foreach (var kvp in node.Fields)
+            {
+                initList.Add($".{kvp.Key} = {kvp.Value.Accept(this)}");
+            }
+
+            sb.Append(string.Join(", ", initList));
+            sb.Append(" }");
+
+            return sb.ToString();
+        }
     }
 }

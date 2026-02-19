@@ -15,12 +15,6 @@ namespace Sage.Ast
         public string Name { get; } = name;
 
         /// <summary>
-        /// Gets or sets the resolved type of the identifier.
-        /// Populated during Semantic Analysis.
-        /// </summary>
-        public string? VariableType { get; set; }
-
-        /// <summary>
         /// Dispatches the visitor to the appropriate visit method for this identifier.
         /// </summary>
         /// <typeparam name="T">The return type of the visitor's operation.</typeparam>

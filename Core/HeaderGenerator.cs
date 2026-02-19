@@ -83,5 +83,7 @@ namespace Sage.Core
         public string Visit(UseNode node) => "";
         public string Visit(InterpolatedStringNode node) => "";
         public string Visit(CastExpressionNode node) => "";
+        public string Visit(StructDeclarationNode node) => "";
+        public string Visit(StructInitializationNode node) => "";
     }
 }
