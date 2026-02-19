@@ -89,16 +89,22 @@ namespace Sage.Core
             if (_symbolTable.IsDefinedInCurrentScope(node.Name))
                 throw new CompilerException(node, "S102", $"Variable '{node.Name}' is already defined.");
 
-            // Check for Type Mismatch
-            if (!TypeSystem.AreTypesCompatible(node.Type, node.Initializer.Accept(this)) &&
-                !IsAutoPromotableLiteral(node.Type, node.Initializer))
+            if (node.Initializer != null)
             {
-                string sourceType = node.Initializer.Accept(this);
-                throw new CompilerException(node, "S101", $"Type Mismatch: Cannot assign {sourceType} to {node.Name} (expected {node.Type}).");
-            }
+                string initType = node.Initializer.Accept(this);
 
-            // Tag literals for code gen
-            if (node.Initializer is LiteralNode literal) literal.TypeName = node.Type;
+                // Allow struct initializations to pass type checking for now
+                if (initType != "struct_initializer")
+                {
+                    if (!TypeSystem.AreTypesCompatible(node.Type, initType) &&
+                        !IsAutoPromotableLiteral(node.Type, node.Initializer))
+                    {
+                        throw new CompilerException(node, "S101", $"Type Mismatch: Cannot assign {initType} to {node.Name} (expected {node.Type}).");
+                    }
+                }
+
+                if (node.Initializer is LiteralNode literal) literal.TypeName = node.Type;
+            }
 
             _symbolTable.Define(node.Name, node.Type);
             return node.Type;
@@ -217,6 +223,30 @@ namespace Sage.Core
         public string Visit(UnaryExpressionNode node) => node.Operand.Accept(this);
         public string Visit(CastExpressionNode node) => node.TargetType;
         public string Visit(UseNode node) => "none";
-        public string Visit(InterpolatedStringNode node) => "string";
+
+        public string Visit(InterpolatedStringNode node)
+        {
+            foreach (var part in node.Parts)
+            {
+                part.VariableType = part.Accept(this);
+            }
+            return "string";
+        }
+
+        public string Visit(StructDeclarationNode node)
+        {
+            _symbolTable.Define(node.Name, "struct");
+            foreach (var field in node.Fields) field.Accept(this);
+            return "none";
+        }
+
+        public string Visit(StructInitializationNode node)
+        {
+            // Visit all fields to ensure inner expressions are validated
+            foreach (var value in node.Fields.Values) value.Accept(this);
+
+            // Return a special internal type marker
+            return "struct_initializer";
+        }
     }
 }

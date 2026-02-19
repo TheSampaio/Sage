@@ -94,7 +94,7 @@ func main(): none
 
 ## Project Status
 
-The project is currently in **v0.5.0 (Alpha)**.
+The project is currently in **v0.5.1 (Alpha)**.
 
 - [x] **CLI & Project System** (`new`, `build`, `run`, `--version`)
 - [x] **Variable Declarations** (`var`) & **Constants** (`const`)

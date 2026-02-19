@@ -20,6 +20,12 @@ namespace Sage.Ast
         public int Column { get; set; }
 
         /// <summary>
+        /// Gets or sets the resolved type of this node.
+        /// Populated during Semantic Analysis to aid Code Generation.
+        /// </summary>
+        public string? VariableType { get; set; }
+
+        /// <summary>
         /// Dispatches the node to the appropriate visit method on the provided visitor.
         /// </summary>
         /// <typeparam name="T">The return type of the visitor's operation.</typeparam>

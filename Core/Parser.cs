@@ -229,6 +229,8 @@ namespace Sage.Core
                 return CreateNode(new ReturnNode(expr), startToken);
             }
 
+            if (Current.Type == TokenType.Keyword_Struct) return ParseStructDeclaration();
+
             // 4. Variable Declaration
             // Verifica se começa com 'var' ou 'const'
             if (Current.Type == TokenType.Keyword_Var || Current.Type == TokenType.Keyword_Const)
@@ -285,36 +287,32 @@ namespace Sage.Core
         }
 
         /// <summary>Parses a 'for' loop: for(init; condition; increment) { ... }</summary>
+        /// <summary>Parses a 'for' loop: for(init; condition; increment) { ... }</summary>
         private ForNode ParseFor()
         {
             var startToken = Current;
             Consume(TokenType.Keyword_For);
             Consume(TokenType.OpenParen);
 
-            // 1. Initializer (pode ser vazio, declaração ou expressão)
+            // 1. Initializer (can be empty, a declaration, or an expression)
             AstNode? initializer = null;
             if (Current.Type != TokenType.Semicolon)
             {
-                if (IsType(Current))
-                    initializer = ParseVariableDeclaration(); // int i = 0;
-                else
-                    initializer = ParseExpression(); // i = 0
-
-                // ParseVariableDeclaration já consome o ponto e vírgula interno se for declaração?
-                // Geralmente VariableDeclaration consome o ';'. Se for expressão pura, precisamos consumir.
-                // Ajuste conforme sua implementação de ParseVariableDeclaration. 
-                // Assumindo que ParseVariableDeclaration consome ';', mas ParseExpression não.
-
-                // NOTA: Para simplificar, vamos assumir que ParseVariableDeclaration consome ';'.
-                // Se foi expressão, precisamos consumir.
-                if (initializer is not VariableDeclarationNode)
+                // FIX: Check for 'var' or 'const' instead of IsType
+                if (Current.Type == TokenType.Keyword_Var || Current.Type == TokenType.Keyword_Const)
                 {
+                    initializer = ParseVariableDeclaration();
+                    // Note: ParseVariableDeclaration() already consumes the trailing ';'
+                }
+                else
+                {
+                    initializer = ParseExpression();
                     Consume(TokenType.Semicolon);
                 }
             }
             else
             {
-                Consume(TokenType.Semicolon); // Vazio
+                Consume(TokenType.Semicolon); // Empty initializer
             }
 
             // 2. Condition
@@ -687,7 +685,49 @@ namespace Sage.Core
                 return expr;
             }
 
+            // Struct Initialization: { field = value, field2 = value2 }
+            if (Match(TokenType.OpenBrace))
+            {
+                var fields = new Dictionary<string, AstNode>();
+
+                if (Current.Type != TokenType.CloseBrace)
+                {
+                    do
+                    {
+                        string fieldName = Consume(TokenType.Identifier).Value;
+                        Consume(TokenType.Equals, "Expected '=' after field name.");
+                        fields[fieldName] = ParseExpression();
+
+                    } while (Match(TokenType.Comma));
+                }
+
+                Consume(TokenType.CloseBrace, "Expected '}' to close struct initialization.");
+                return CreateNode(new StructInitializationNode(fields), startToken);
+            }
+
             throw new CompilerException(Current, "S004", $"Unexpected token: {Current.Type}");
+        }
+
+        private StructDeclarationNode ParseStructDeclaration()
+        {
+            var startToken = Current;
+            Consume(TokenType.Keyword_Struct);
+            string name = Consume(TokenType.Identifier).Value;
+            Consume(TokenType.OpenBrace);
+
+            var fields = new List<VariableDeclarationNode>();
+            while (Current.Type != TokenType.CloseBrace && Current.Type != TokenType.EndOfFile)
+            {
+                string fieldName = Consume(TokenType.Identifier).Value;
+                Consume(TokenType.Colon);
+                string fieldType = ConsumeType();
+                Consume(TokenType.Semicolon);
+
+                fields.Add(new VariableDeclarationNode(fieldName, fieldType, null!, false));
+            }
+            Consume(TokenType.CloseBrace);
+
+            return CreateNode(new StructDeclarationNode(name, fields), startToken);
         }
     }
 }
