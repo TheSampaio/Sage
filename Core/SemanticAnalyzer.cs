@@ -8,6 +8,7 @@ namespace Sage.Core
     public class SemanticAnalyzer(SymbolTable? sharedTable = null) : IAstVisitor<string>
     {
         private readonly SymbolTable _symbolTable = sharedTable ?? new SymbolTable();
+        private readonly Dictionary<string, StructDeclarationNode> _structDeclarations = new();
 
         public void Analyze(ProgramNode ast) => ast.Accept(this);
 
@@ -230,13 +231,13 @@ namespace Sage.Core
             {
                 part.VariableType = part.Accept(this);
             }
-            return "string";
+            return "str";
         }
 
         public string Visit(StructDeclarationNode node)
         {
             _symbolTable.Define(node.Name, "struct");
-            foreach (var field in node.Fields) field.Accept(this);
+            _structDeclarations[node.Name] = node;
             return "none";
         }
 
@@ -247,6 +248,21 @@ namespace Sage.Core
 
             // Return a special internal type marker
             return "struct_initializer";
+        }
+
+        public string Visit(MemberAccessNode node)
+        {
+            string objType = node.Object.Accept(this);
+
+            if (!_structDeclarations.TryGetValue(objType, out var structDecl))
+                throw new CompilerException(node, "S109", $"Cannot access member. '{objType}' is not a struct.");
+
+            var field = structDecl.Fields.FirstOrDefault(f => f.Name == node.PropertyName);
+            if (field == null)
+                throw new CompilerException(node, "S110", $"Struct '{objType}' does not contain field '{node.PropertyName}'.");
+
+            node.VariableType = field.Type;
+            return field.Type;
         }
     }
 }

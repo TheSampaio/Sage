@@ -26,6 +26,12 @@ namespace Sage.Ast
         public string? VariableType { get; set; }
 
         /// <summary>
+        /// Gets or sets the optional format specifier associated with this node,
+        /// used primarily for formatted output expressions.
+        /// </summary>
+        public string? FormatSpecifier { get; set; }
+
+        /// <summary>
         /// Dispatches the node to the appropriate visit method on the provided visitor.
         /// </summary>
         /// <typeparam name="T">The return type of the visitor's operation.</typeparam>

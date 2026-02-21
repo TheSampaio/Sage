@@ -1,51 +1,53 @@
 use console;
 
-// Can be defined outside of functions, but not required
-// struct Person
-// {
-//     name: str;
-//     age: i32;
-//     height: f32;
-//     female: b8;
-// }
+struct Person
+{
+    name: str;
+    age: i32;
+    height: f32;
+    money: f64;
+    female: b8;
+}
 
 func main(): none
 {
-    // Variaveis na Sage sempre precisam ser inicializadas
-    var loops: i32 = 0;
     const max: i32 = 5;
 
-    struct Person
+    // Loop + conditionals
+    for (var i: i32 = 0; i < max; i++)
     {
-        name: str;
-        age: i32;
-        height: f32;
-        female: b8;
-    }
-
-    var person1: Person = {
-        name = "Alice",
-        age = 30,
-        height = 1.80,
-        female = true
-    };
-
-    while (loops < max)
-    {
-        if (loops % 2 == 0)
+        if (i % 2 == 0)
         {
-            console::print_line("Even: {loops}");
+            console::print_line("Even: {i}");
         }
         else
         {
-            console::print_line("Odd: {loops}");
+            console::print_line("Odd: {i}");
         }
-
-        loops++;
     }
 
-    for (var i: i32 = 0; i < max; i++)
+    console::print_line("===");
+
+    // Struct + formatted interpolation
+    var person: Person = {
+        name = "Alice",
+        age = 30,
+        height = 1.68,
+        money = 1528.64,
+        female = true
+    };
+
+    console::print_line("Hi, I'm {person.name}.");
+
+    if (person.female)
     {
-        console::print_line("Counter: {max}");
+        console::print_line("I am female, {person.age} years old.");
     }
+    else
+    {
+        console::print_line("I am male, {person.age} years old.");
+    }
+
+    console::print_line("Height: {person.height:2f}m");
+    console::print_line("Balance: ${person.money:2f}");
 }

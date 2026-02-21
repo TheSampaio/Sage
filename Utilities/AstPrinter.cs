@@ -196,5 +196,13 @@ namespace Sage.Utilities
             Type = "StructInitialization",
             Fields = node.Fields.ToDictionary(k => k.Key, v => v.Value.Accept(this))
         };
+
+        /// <summary>Visits a mamber access dot.</summary>
+        public object Visit(MemberAccessNode node) => new
+        {
+            Type = "MemberAccess",
+            Object = node.Object.Accept(this),
+            node.PropertyName
+        };
     }
 }
