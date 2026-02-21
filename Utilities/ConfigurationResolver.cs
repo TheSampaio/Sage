@@ -29,7 +29,7 @@
 
             if (args.Length == 0) throw new ArgumentException("Usage: sage <command> OR sage <file>");
 
-            bool verbose = args.Contains("--verbose") || args.Contains("-v");
+            bool verbose = args.Contains("--verbose");
             string command = args.FirstOrDefault(a => !a.StartsWith('-')) ?? "";
 
             string autoPath = Path.Combine(Directory.GetCurrentDirectory(), "src", "main.sg");
