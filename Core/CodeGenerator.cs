@@ -145,7 +145,7 @@ namespace Sage.Core
 
         public string Visit(LiteralNode node)
         {
-            if (node.TypeName == "string")
+            if (node.TypeName == "str")
             {
                 _usesTypes = true;
                 return $"\"{node.Value}\"";
@@ -296,23 +296,44 @@ namespace Sage.Core
 
             foreach (var part in node.Parts)
             {
-                if (part is LiteralNode lit && lit.TypeName == "string")
+                if (part is LiteralNode lit && lit.TypeName == "str")
                 {
-                    formatString.Append(lit.Value);
+                    string safeLiteral = lit.Value.ToString()!.Replace("%", "%%");
+                    formatString.Append(safeLiteral);
                 }
                 else
                 {
-                    // Map the resolved Sage type to a C printf specifier
-                    string specifier = part.VariableType switch
+                    string specifier;
+
+                    if (!string.IsNullOrEmpty(part.FormatSpecifier))
                     {
-                        "i32" or "i16" or "i8" => "%d",
-                        "u32" or "u16" or "u8" => "%u",
-                        "i64" => "%lld",
-                        "u64" => "%llu",
-                        "f32" or "f64" => "%f",
-                        "str" => "%s",
-                        _ => "%d" // Default fallback
-                    };
+                        if (TypeSystem.IsFloatingPoint(part.VariableType!))
+                        {
+                            if (part.FormatSpecifier.StartsWith('.'))
+                                specifier = $"%{part.FormatSpecifier}";
+                            else if (part.FormatSpecifier.EndsWith('f'))
+                                specifier = $"%.{part.FormatSpecifier}";
+                            else
+                                specifier = $"%{part.FormatSpecifier}";
+                        }
+                        else
+                        {
+                            specifier = $"%{part.FormatSpecifier}";
+                        }
+                    }
+                    else
+                    {
+                        specifier = part.VariableType switch
+                        {
+                            "i32" or "i16" or "i8" => "%d",
+                            "u32" or "u16" or "u8" => "%u",
+                            "i64" => "%lld",
+                            "u64" => "%llu",
+                            "f32" or "f64" => "%f",
+                            "str" => "%s",
+                            _ => "%d"
+                        };
+                    }
 
                     formatString.Append(specifier);
                     arguments.Add(part.Accept(this));
@@ -321,7 +342,6 @@ namespace Sage.Core
 
             string argsC = arguments.Count > 0 ? ", " + string.Join(", ", arguments) : "";
 
-            // Generate a GNU C Statement Expression to format and return the temporary buffer inline
             return $"({{ static char _buf[512]; snprintf(_buf, sizeof(_buf), \"{formatString}\"{argsC}); _buf; }})";
         }
 
@@ -357,5 +377,7 @@ namespace Sage.Core
 
             return sb.ToString();
         }
+
+        public string Visit(MemberAccessNode node) => $"{node.Object.Accept(this)}.{node.PropertyName}";
     }
 }

@@ -640,12 +640,14 @@ namespace Sage.Core
 
         private AstNode ParseCastExpression()
         {
-            var expr = ParsePrimary();
+            var expr = ParseMemberAccess();
+
             while (Current.Type == TokenType.Keyword_As)
             {
                 var opToken = Current; _pos++;
                 expr = CreateNode(new CastExpressionNode(expr, ConsumeType()), opToken);
             }
+
             return expr;
         }
 
@@ -658,7 +660,65 @@ namespace Sage.Core
             if (Match(TokenType.Keyword_False)) return CreateNode(new LiteralNode(false, "b8"), startToken);
             if (Current.Type == TokenType.Integer) return CreateNode(new LiteralNode(Consume(TokenType.Integer).Value, "i32"), startToken);
             if (Current.Type == TokenType.Float) return CreateNode(new LiteralNode(Consume(TokenType.Float).Value, "f64"), startToken);
-            if (Current.Type == TokenType.String) return CreateNode(new LiteralNode(Consume(TokenType.String).Value, "string"), startToken);
+
+            if (Current.Type == TokenType.String)
+            {
+                string value = Consume(TokenType.String).Value;
+
+                if (value.Contains('{') && value.Contains('}'))
+                {
+                    var interpNode = CreateNode(new InterpolatedStringNode(), startToken);
+                    int lastClose = 0;
+
+                    for (int i = 0; i < value.Length; i++)
+                    {
+                        if (value[i] == '{')
+                        {
+                            if (i > lastClose)
+                            {
+                                interpNode.Parts.Add(CreateNode(new LiteralNode(value[lastClose..i], "str"), startToken));
+                            }
+
+                            int end = value.IndexOf('}', i);
+                            if (end == -1) throw new CompilerException(startToken, "S010", "Unclosed interpolation brace '}'.");
+
+                            string exprStr = value[(i + 1)..end];
+                            if (string.IsNullOrWhiteSpace(exprStr))
+                                throw new CompilerException(startToken, "S011", "Empty interpolation expression.");
+
+                            string? format = null;
+                            int lastColonIdx = exprStr.LastIndexOf(':');
+
+                            if (lastColonIdx != -1 && (lastColonIdx == 0 || exprStr[lastColonIdx - 1] != ':'))
+                            {
+                                format = exprStr[(lastColonIdx + 1)..];
+                                exprStr = exprStr[..lastColonIdx];
+                            }
+
+                            var subLexer = new Lexer(exprStr);
+                            var subTokens = subLexer.Tokenize();
+                            var subParser = new Parser(subTokens, _fileName);
+
+                            var parsedExpr = subParser.ParseExpression();
+                            parsedExpr.FormatSpecifier = format;
+
+                            interpNode.Parts.Add(parsedExpr);
+
+                            i = end;
+                            lastClose = end + 1;
+                        }
+                    }
+
+                    if (lastClose < value.Length)
+                    {
+                        interpNode.Parts.Add(CreateNode(new LiteralNode(value[lastClose..], "str"), startToken));
+                    }
+
+                    return interpNode;
+                }
+
+                return CreateNode(new LiteralNode(value, "str"), startToken);
+            }
 
             if (Current.Type == TokenType.Identifier)
             {
@@ -728,6 +788,20 @@ namespace Sage.Core
             Consume(TokenType.CloseBrace);
 
             return CreateNode(new StructDeclarationNode(name, fields), startToken);
+        }
+
+        private AstNode ParseMemberAccess()
+        {
+            var left = ParsePrimary();
+
+            while (Match(TokenType.Dot))
+            {
+                var opToken = Current;
+                string propertyName = Consume(TokenType.Identifier, "Expected property name after '.'").Value;
+                left = CreateNode(new MemberAccessNode(left, propertyName), opToken);
+            }
+
+            return left;
         }
     }
 }

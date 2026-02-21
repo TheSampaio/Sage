@@ -221,6 +221,7 @@ namespace Sage.Core
                 ';' => TokenType.Semicolon,
                 ',' => TokenType.Comma,
                 ':' => TokenType.Colon,
+                '.' => TokenType.Dot,
                 '<' => TokenType.Less,
                 '>' => TokenType.Greater,
                 '!' => TokenType.Bang,

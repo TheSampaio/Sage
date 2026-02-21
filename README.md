@@ -18,7 +18,126 @@ The project strictly follows **SOLID principles** and **Clean Code** architectur
 * **Modularity:** First-class support for `module` blocks and namespaced calls (`math::sum`) to manage large codebases.
 * **Developer Tooling:** Standardized **JSON** debug outputs for Tokens (`.tok.json`) and Abstract Syntax Trees (`.ast.json`).
 
+
 ## Dependencies
+
+Sage acts as a transpiler (Source-to-Source), converting your `.sg` code into optimized C. To finalize the build into a native executable, it relies on an external C toolchain.
+
+* **GCC (GNU Compiler Collection):** Required
+
+### Linux (Debian/Ubuntu) Installation
+
+On Debian-based systems, the easiest way to get everything you need is by installing the `build-essential` package.
+
+1. Open your terminal.
+2. Run:
+
+```bash
+sudo apt update && sudo apt install build-essential
+```
+
+3. Verify installation:
+
+```bash
+gcc --version
+```
+
+# Windows Installation (w64devkit — Recommended)
+
+For Windows, we recommend using **w64devkit**, a portable and lightweight MinGW-w64 GCC toolchain that works directly in CMD, PowerShell, and VS Code — without MSYS2.
+
+## 1. Download w64devkit
+
+1. Go to:
+   [https://www.mingw-w64.org/](https://www.mingw-w64.org/)
+
+2. Navigate to:
+   **Downloads → Pre-Built Toolchains**
+
+3. Select:
+   **w64devkit**
+
+4. You will be redirected to:
+   [https://github.com/skeeto/w64devkit](https://github.com/skeeto/w64devkit)
+
+5. Open the **Releases** page.
+
+6. Download the latest file named similar to:
+
+```
+w64devkit-<version>.zip
+```
+
+(Example: `w64devkit-1.20.0.zip`)
+
+## 2. Extract the Toolchain
+
+Extract the `.zip` file to a permanent location, for example:
+
+```
+C:\Program Files\w64devkit
+```
+
+After extraction, you should have:
+
+```
+C:\Program Files\w64devkit\bin\gcc.exe
+```
+
+## 3. Add GCC to the Windows PATH
+
+To use `gcc` from CMD, PowerShell, or VS Code:
+
+1. Press `Win + S`
+2. Search for **Edit the system environment variables**
+3. Click **Environment Variables**
+4. Under **System variables**, select **Path**
+5. Click **Edit**
+6. Click **New**
+7. Add:
+
+```
+C:\Program Files\w64devkit\bin
+```
+
+8. Click **OK** on all dialogs
+9. Close and reopen your terminal
+
+## 4. Verify Installation
+
+Open a new **Command Prompt (CMD)** and run:
+
+```cmd
+gcc --version
+```
+
+If correctly installed, GCC version information will be displayed.
+
+If you see:
+
+```
+'gcc' is not recognized as an internal or external command
+```
+
+Then:
+
+* The PATH was not added correctly
+* The terminal was not restarted
+* The folder path is incorrect
+
+## Why w64devkit?
+
+* No MSYS2 required
+* No special shell required
+* Works directly in CMD and PowerShell
+* Simple and lightweight
+* Ideal for Sage’s C transpilation workflow
+
+This setup allows Sage to generate C code and compile it immediately using:
+
+```cmd
+gcc output.c -o program.exe
+```
 
 Sage acts as a transpiler (Source-to-Source), converting your `.sg` code into optimized C. To finalize the build into a native executable, it relies on an external C toolchain.
 
@@ -72,29 +191,62 @@ To run `gcc` from any terminal (PowerShell, CMD, or VS Code), you must add it to
 ```rust
 use console;
 
+struct Person
+{
+    name: str;
+    age: i32;
+    height: f32;
+    money: f64;
+    female: b8;
+}
+
 func main(): none
 {
-    var loops: i32 = 0;
     const max: i32 = 5;
 
-    while (loops < max)
+    // Loop + conditionals
+    for (var i: i32 = 0; i < max; i++)
     {
-        if (loops % 2 == 0)
+        if (i % 2 == 0)
         {
-            console::print_line("Even: {loops}");
+            console::print_line("Even: {i}");
         }
         else
         {
-            console::print_line("Odd: {loops}");
+            console::print_line("Odd: {i}");
         }
-        loops++;
     }
+
+    console::print_line("===");
+
+    // Struct + formatted interpolation
+    var person: Person = {
+        name = "Alice",
+        age = 30,
+        height = 1.68,
+        money = 1528.64,
+        female = true
+    };
+
+    console::print_line("Hi, I'm {person.name}.");
+
+    if (person.female)
+    {
+        console::print_line("I am female, {person.age} years old.");
+    }
+    else
+    {
+        console::print_line("I am male, {person.age} years old.");
+    }
+
+    console::print_line("Height: {person.height:2f}m");
+    console::print_line("Balance: ${person.money:2f}");
 }
 ```
 
 ## Project Status
 
-The project is currently in **v0.5.1 (Alpha)**.
+The project is currently in **v0.5.2 (Alpha)**.
 
 - [x] **CLI & Project System** (`new`, `build`, `run`, `--version`)
 - [x] **Variable Declarations** (`var`) & **Constants** (`const`)
@@ -105,8 +257,8 @@ The project is currently in **v0.5.1 (Alpha)**.
 - [x] **Modules & Namespaces** (`::`)
 - [x] **String Interpolation** (compiled to `printf`)
 - [x] **Native Compilation** (GCC Integration)
+- [X] **Structs and Custom Types**
 - [ ] **Arrays and Pointers** (Next Milestone)
-- [ ] **Structs and Custom Types** (Planned)
 
 ## License
 

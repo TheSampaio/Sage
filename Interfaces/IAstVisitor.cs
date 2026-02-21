@@ -83,5 +83,8 @@ namespace Sage.Interfaces
 
         /// <summary>Visits a struct initialization.</summary>
         T Visit(StructInitializationNode node);
+
+        /// <summary>Visits a member access dot.</summary>
+        T Visit(MemberAccessNode node);
     }
 }
