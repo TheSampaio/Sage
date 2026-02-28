@@ -94,8 +94,7 @@ namespace Sage.Core
             {
                 string initType = node.Initializer.Accept(this);
 
-                // Allow struct initializations to pass type checking for now
-                if (initType != "struct_initializer")
+                if (initType != "struct_initializer" && initType != "array_initializer")
                 {
                     if (!TypeSystem.AreTypesCompatible(node.Type, initType) &&
                         !IsAutoPromotableLiteral(node.Type, node.Initializer))
@@ -104,7 +103,10 @@ namespace Sage.Core
                     }
                 }
 
-                if (node.Initializer is LiteralNode literal) literal.TypeName = node.Type;
+                if (node.Initializer is LiteralNode literal)
+                    literal.TypeName = node.Type;
+
+                node.Initializer.VariableType = node.Type;
             }
 
             _symbolTable.Define(node.Name, node.Type);
@@ -149,11 +151,20 @@ namespace Sage.Core
         private static bool IsLogicalOp(TokenType op) =>
             op is TokenType.AmpersandAmpersand or TokenType.PipePipe;
 
-        // Syntactic Sugar: Allows assigning "10" (int) to an f32 variable without explicit casting
+        // Syntactic Sugar: Allows assigning numeric literals to corresponding numeric types automatically
         private bool IsAutoPromotableLiteral(string targetType, AstNode initializer)
         {
-            if (initializer is not LiteralNode) return false;
-            if (TypeSystem.IsFloatingPoint(targetType) && TypeSystem.IsNumeric(initializer.Accept(this))) return true;
+            if (initializer is not LiteralNode literal) return false;
+            string literalType = literal.Accept(this);
+
+            if (TypeSystem.IsNumeric(targetType) && TypeSystem.IsNumeric(literalType))
+            {
+                if (!TypeSystem.IsFloatingPoint(targetType) && TypeSystem.IsFloatingPoint(literalType))
+                    return false;
+
+                return true;
+            }
+
             return false;
         }
 
@@ -177,14 +188,19 @@ namespace Sage.Core
 
         public string Visit(AssignmentNode node)
         {
-            var symbol = _symbolTable.Resolve(node.Name)
-                ?? throw new CompilerException(node, "S105", $"Variable '{node.Name}' not declared.");
-            node.VariableType = symbol.Type;
+            string targetType = node.Target.Accept(this);
+            string exprType = node.Expression.Accept(this);
 
-            if (!TypeSystem.AreTypesCompatible(symbol.Type, node.Expression.Accept(this)))
-                throw new CompilerException(node, "S108", $"Cannot assign {node.Expression.Accept(this)} to {symbol.Type}.");
+            if (exprType != "struct_initializer" && exprType != "array_initializer")
+            {
+                if (!TypeSystem.AreTypesCompatible(targetType, exprType) && !IsAutoPromotableLiteral(targetType, node.Expression))
+                    throw new CompilerException(node, "S108", $"Cannot assign {exprType} to {targetType}.");
+            }
 
-            return symbol.Type;
+            node.Expression.VariableType = targetType;
+            node.VariableType = targetType;
+
+            return targetType;
         }
 
         public string Visit(ExternBlockNode node)
@@ -263,6 +279,33 @@ namespace Sage.Core
 
             node.VariableType = field.Type;
             return field.Type;
+        }
+
+        public string Visit(ArrayInitializationNode node)
+        {
+            foreach (var el in node.Elements) el.Accept(this);
+            return "array_initializer";
+        }
+
+        public string Visit(ArrayAccessNode node)
+        {
+            string arrayType = node.Array.Accept(this);
+
+            bool isArray = TypeSystem.IsArrayType(arrayType);
+            bool isPointer = arrayType.EndsWith("*");
+
+            if (!isArray && !isPointer)
+                throw new CompilerException(node, "S111", $"Cannot index into non-array and non-pointer type '{arrayType}'.");
+
+            string indexType = node.Index.Accept(this);
+            if (!TypeSystem.IsNumeric(indexType) || TypeSystem.IsFloatingPoint(indexType))
+                throw new CompilerException(node, "S112", $"Array index must be an integer, got '{indexType}'.");
+
+            node.VariableType = isArray
+                ? TypeSystem.GetArrayBaseType(arrayType)
+                : arrayType[..^1];
+
+            return node.VariableType;
         }
     }
 }

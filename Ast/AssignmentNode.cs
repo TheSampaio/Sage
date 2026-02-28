@@ -3,17 +3,12 @@
 namespace Sage.Ast
 {
     /// <summary>
-    /// Represents an assignment operation where a value is assigned to a named identifier.
-    /// Example: x = 10 + 5;
+    /// Represents an assignment operation where a value is assigned to a target expression.
+    /// Example: x = 10; cars[0] = "Astra"; obj.prop = 5;
     /// </summary>
-    /// <param name="name">The name of the target identifier.</param>
-    /// <param name="expression">The expression being assigned to the target.</param>
-    public class AssignmentNode(string name, AstNode expression) : AstNode
+    public class AssignmentNode(AstNode target, AstNode expression) : AstNode
     {
-        /// <summary>
-        /// Gets the name of the variable or identifier receiving the value.
-        /// </summary>
-        public string Name { get; } = name;
+        public AstNode Target { get; } = target;
 
         /// <summary>
         /// Gets the expression tree that evaluates to the assigned value.

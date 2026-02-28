@@ -86,5 +86,9 @@ namespace Sage.Interfaces
 
         /// <summary>Visits a member access dot.</summary>
         T Visit(MemberAccessNode node);
+
+        T Visit(ArrayInitializationNode node);
+
+        T Visit(ArrayAccessNode node);
     }
 }

@@ -201,7 +201,6 @@ namespace Sage.Core
         }
 
         /// <summary>Parses a single statement or declaration.</summary>
-        /// <summary>Parses a single statement or declaration.</summary>
         private AstNode ParseStatement()
         {
             var startToken = Current;
@@ -259,7 +258,7 @@ namespace Sage.Core
 
             if (Match(TokenType.Keyword_Else))
             {
-                // Suporte para 'else if' recursivo
+                // Support to 'else if' recursive
                 if (Current.Type == TokenType.Keyword_If)
                 {
                     elseBranch = ParseIf();
@@ -286,7 +285,6 @@ namespace Sage.Core
             return CreateNode(new WhileNode(condition, body), startToken);
         }
 
-        /// <summary>Parses a 'for' loop: for(init; condition; increment) { ... }</summary>
         /// <summary>Parses a 'for' loop: for(init; condition; increment) { ... }</summary>
         private ForNode ParseFor()
         {
@@ -336,7 +334,6 @@ namespace Sage.Core
             return CreateNode(new ForNode(initializer, condition, increment, body), startToken);
         }
 
-        /// <summary>Parses variable (var) or constant (const) declarations.</summary>
         /// <summary>
         /// Parses a variable declaration: var name: type = value;
         /// </summary>
@@ -363,8 +360,15 @@ namespace Sage.Core
             string type = ConsumeType(); // Retorna "str", "i32", "none*", etc.
 
             // 4. Initializer
-            Consume(TokenType.Equals, "Expected '=' for initialization.");
-            var initializer = ParseExpression();
+            AstNode? initializer = null;
+            if (Match(TokenType.Equals))
+            {
+                initializer = ParseExpression();
+            }
+            else if (!type.Contains('[')) // Arrays não exigem inicialização!
+            {
+                throw new CompilerException(startToken, "S012", "Standard variables must be initialized.");
+            }
 
             Consume(TokenType.Semicolon);
 
@@ -387,13 +391,6 @@ namespace Sage.Core
 
             return CreateNode(new IfNode(condition, thenBranch, elseBranch), startToken);
         }
-
-
-
-
-
-
-
 
         /// <summary>Parses while loop structures.</summary>
         private WhileNode ParseWhileStatement()
@@ -491,36 +488,30 @@ namespace Sage.Core
             return CreateNode(new BlockNode(statements), startToken);
         }
 
-        /// <summary>Helper to consume and return a valid Sage data type.</summary>
-        /// <summary>
-        /// Consumes a type token and handles pointer syntax (e.g., "i32", "none*", "u8**").
-        /// </summary>
         /// <summary>
         /// Consumes a type token and handles pointer syntax (e.g., "i32", "none*", "u8**").
         /// </summary>
         private string ConsumeType()
         {
-            // 1. Verifica se começa com um tipo válido (int, float, void, struct name...)
-            if (!IsType(Current))
-            {
-                // Se não for tipo primitivo, pode ser um Identifier (nome de struct/enum)
-                // Mas por enquanto vamos nos ater aos primitivos definidos no seu Enum + Void
-                if (Current.Type != TokenType.Identifier)
-                {
-                    throw new CompilerException(Current, "S003", $"Expected a type but found {Current.Type} ('{Current.Value}')");
-                }
-            }
+            if (!IsType(Current) && Current.Type != TokenType.Identifier)
+                throw new CompilerException(Current, "S003", $"Expected a type but found {Current.Type} ('{Current.Value}')");
 
-            // 2. Consome o tipo base (ex: "none", "i32", "str")
             string type = Current.Value;
-            _pos++; // Avança manualmente (Consume sem validação de tipo fixo)
+            _pos++;
 
-            // 3. IMPLEMENTAÇÃO DE PONTEIROS
-            // Enquanto o próximo token for um Asterisco (*), anexa ao tipo.
+            // Pointers
             while (Current.Type == TokenType.Asterisk)
             {
                 type += "*";
-                _pos++; // Consome o '*'
+                _pos++;
+            }
+
+            // Arrays
+            if (Match(TokenType.OpenBracket))
+            {
+                var sizeToken = Consume(TokenType.Integer, "Array type must specify a fixed size. Example: i32[4]");
+                Consume(TokenType.CloseBracket, "Expected ']' after array size.");
+                type += $"[{sizeToken.Value}]";
             }
 
             return type;
@@ -537,10 +528,10 @@ namespace Sage.Core
             {
                 var opToken = Current;
                 var value = ParseAssignment();
-                if (expr is IdentifierNode id)
-                    return CreateNode(new AssignmentNode(id.Name, value), opToken);
+                if (expr is IdentifierNode || expr is MemberAccessNode || expr is ArrayAccessNode)
+                    return CreateNode(new AssignmentNode(expr, value), opToken);
 
-                throw new CompilerException(Current, "S005", "Invalid assignment target.");
+                throw new CompilerException(opToken, "S005", "Invalid assignment target.");
             }
             return expr;
         }
@@ -748,21 +739,40 @@ namespace Sage.Core
             // Struct Initialization: { field = value, field2 = value2 }
             if (Match(TokenType.OpenBrace))
             {
-                var fields = new Dictionary<string, AstNode>();
+                Token tokenInside = Current;
+                Token tokenAfterInside = _pos + 1 < _tokens.Count ? _tokens[_pos + 1] : _tokens[^1];
 
-                if (Current.Type != TokenType.CloseBrace)
+                if (tokenInside.Type == TokenType.Identifier && tokenAfterInside.Type == TokenType.Equals)
                 {
-                    do
+                    var fields = new Dictionary<string, AstNode>();
+
+                    if (Current.Type != TokenType.CloseBrace)
                     {
-                        string fieldName = Consume(TokenType.Identifier).Value;
-                        Consume(TokenType.Equals, "Expected '=' after field name.");
-                        fields[fieldName] = ParseExpression();
+                        do
+                        {
+                            string fieldName = Consume(TokenType.Identifier).Value;
+                            Consume(TokenType.Equals, "Expected '=' after field name.");
+                            fields[fieldName] = ParseExpression();
 
-                    } while (Match(TokenType.Comma));
+                        } while (Match(TokenType.Comma));
+                    }
+
+                    Consume(TokenType.CloseBrace, "Expected '}' to close struct initialization.");
+                    return CreateNode(new StructInitializationNode(fields), startToken);
                 }
-
-                Consume(TokenType.CloseBrace, "Expected '}' to close struct initialization.");
-                return CreateNode(new StructInitializationNode(fields), startToken);
+                else
+                {
+                    var elements = new List<AstNode>();
+                    if (Current.Type != TokenType.CloseBrace)
+                    {
+                        do
+                        {
+                            elements.Add(ParseExpression());
+                        } while (Match(TokenType.Comma));
+                    }
+                    Consume(TokenType.CloseBrace, "Expected '}' to close array initialization.");
+                    return CreateNode(new ArrayInitializationNode(elements), startToken);
+                }
             }
 
             throw new CompilerException(Current, "S004", $"Unexpected token: {Current.Type}");
@@ -793,14 +803,23 @@ namespace Sage.Core
         private AstNode ParseMemberAccess()
         {
             var left = ParsePrimary();
-
-            while (Match(TokenType.Dot))
+            while (true)
             {
-                var opToken = Current;
-                string propertyName = Consume(TokenType.Identifier, "Expected property name after '.'").Value;
-                left = CreateNode(new MemberAccessNode(left, propertyName), opToken);
+                if (Match(TokenType.Dot))
+                {
+                    var opToken = Current;
+                    string propertyName = Consume(TokenType.Identifier, "Expected property name.").Value;
+                    left = CreateNode(new MemberAccessNode(left, propertyName), opToken);
+                }
+                else if (Match(TokenType.OpenBracket))
+                {
+                    var opToken = Current;
+                    var index = ParseExpression();
+                    Consume(TokenType.CloseBracket, "Expected ']' after array index.");
+                    left = CreateNode(new ArrayAccessNode(left, index), opToken);
+                }
+                else break;
             }
-
             return left;
         }
     }
