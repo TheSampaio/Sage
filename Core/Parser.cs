@@ -375,68 +375,6 @@ namespace Sage.Core
             return CreateNode(new VariableDeclarationNode(name, type, initializer, isConstant), startToken);
         }
 
-        /// <summary>Parses if-else conditional branches.</summary>
-        private IfNode ParseIfStatement()
-        {
-            var startToken = Current;
-            Consume(TokenType.Keyword_If);
-            Consume(TokenType.OpenParen);
-            var condition = ParseExpression();
-            Consume(TokenType.CloseParen);
-            var thenBranch = ParseBlock();
-
-            BlockNode? elseBranch = null;
-            if (Match(TokenType.Keyword_Else))
-                elseBranch = ParseBlock();
-
-            return CreateNode(new IfNode(condition, thenBranch, elseBranch), startToken);
-        }
-
-        /// <summary>Parses while loop structures.</summary>
-        private WhileNode ParseWhileStatement()
-        {
-            var startToken = Current;
-            Consume(TokenType.Keyword_While);
-            Consume(TokenType.OpenParen);
-            var condition = ParseExpression();
-            Consume(TokenType.CloseParen);
-            var body = ParseBlock();
-            return CreateNode(new WhileNode(condition, body), startToken);
-        }
-
-        /// <summary>Parses C-style for loops.</summary>
-        private ForNode ParseForStatement()
-        {
-            var startToken = Current;
-            Consume(TokenType.Keyword_For);
-            Consume(TokenType.OpenParen);
-
-            AstNode? initializer = null;
-            if (Current.Type != TokenType.Semicolon)
-            {
-                if (Current.Type == TokenType.Keyword_Var)
-                    initializer = ParseVariableDeclaration();
-                else
-                {
-                    initializer = ParseExpression();
-                    Consume(TokenType.Semicolon);
-                }
-            }
-            else Consume(TokenType.Semicolon);
-
-            AstNode? condition = null;
-            if (Current.Type != TokenType.Semicolon)
-                condition = ParseExpression();
-            Consume(TokenType.Semicolon);
-
-            AstNode? increment = null;
-            if (Current.Type != TokenType.CloseParen)
-                increment = ParseExpression();
-            Consume(TokenType.CloseParen);
-
-            return CreateNode(new ForNode(initializer, condition, increment, ParseBlock()), startToken);
-        }
-
         /// <summary>Parses function declarations, including external C interop functions.</summary>
         private FunctionDeclarationNode ParseFunction(string moduleOwner)
         {
