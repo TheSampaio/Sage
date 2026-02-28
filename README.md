@@ -257,8 +257,8 @@ The project is currently in **v0.5.3 (Alpha)**.
 - [x] **Modules & Namespaces** (`::`)
 - [x] **String Interpolation** (compiled to `printf`)
 - [x] **Native Compilation** (GCC Integration)
-- [X] **Structs and Custom Types**
-- [ ] **Arrays and Pointers** (Next Milestone)
+- [x] **Structs and Custom Types**
+- [x] **Arrays and Pointers**
 
 ## License
 
