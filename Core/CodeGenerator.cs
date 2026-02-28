@@ -87,7 +87,15 @@ namespace Sage.Core
             if (node.Parameters.Count == 0) sb.Append("void");
             else
             {
-                var paramsList = node.Parameters.Select(p => $"{TypeSystem.ToCType(p.Type)} {p.Name}");
+                var paramsList = node.Parameters.Select(p =>
+                {
+                    if (TypeSystem.IsArrayType(p.Type))
+                    {
+                        string bType = TypeSystem.ToCType(TypeSystem.GetArrayBaseType(p.Type));
+                        return $"{bType} {p.Name}[{TypeSystem.GetArraySize(p.Type)}]";
+                    }
+                    return $"{TypeSystem.ToCType(p.Type)} {p.Name}";
+                });
                 sb.Append(string.Join(", ", paramsList));
             }
             sb.AppendLine(")");
@@ -140,6 +148,17 @@ namespace Sage.Core
             _usesTypes = true;
             string prefix = node.IsConstant ? "const " : "";
             string init = node.Initializer != null ? $" = {node.Initializer.Accept(this)}" : "";
+
+            // Array especial C syntax: tipo nome[tamanho];
+            if (TypeSystem.IsArrayType(node.Type))
+            {
+                string baseType = TypeSystem.ToCType(TypeSystem.GetArrayBaseType(node.Type));
+                string size = TypeSystem.GetArraySize(node.Type).ToString();
+                if (string.IsNullOrEmpty(init)) init = " = {0}"; // Zera a memória de forma segura no C
+
+                return $"{Indent}{prefix}{baseType} {node.Name}[{size}]{init};\n";
+            }
+
             return $"{Indent}{prefix}{TypeSystem.ToCType(node.Type)} {node.Name}{init};\n";
         }
 
@@ -195,7 +214,7 @@ namespace Sage.Core
             return sb.ToString();
         }
 
-        public string Visit(AssignmentNode node) => $"{Indent}{node.Name} = {node.Expression.Accept(this)};\n";
+        public string Visit(AssignmentNode node) => $"{Indent}{node.Target.Accept(this)} = {node.Expression.Accept(this)};\n";
         public string Visit(IdentifierNode node) => node.Name.Replace("::", "_");
         public string Visit(ReturnNode node) => $"{Indent}return {node.Expression.Accept(this)};\n";
         public string Visit(ExpressionStatementNode node) => $"{Indent}{node.Expression.Accept(this)};\n";
@@ -364,9 +383,14 @@ namespace Sage.Core
         {
             _usesTypes = true;
             var sb = new StringBuilder();
+
+            if (!string.IsNullOrEmpty(node.VariableType))
+                sb.Append($"({TypeSystem.ToCType(node.VariableType)})");
+
             sb.Append("{ ");
 
             var initList = new List<string>();
+
             foreach (var kvp in node.Fields)
             {
                 initList.Add($".{kvp.Key} = {kvp.Value.Accept(this)}");
@@ -379,5 +403,16 @@ namespace Sage.Core
         }
 
         public string Visit(MemberAccessNode node) => $"{node.Object.Accept(this)}.{node.PropertyName}";
+
+        public string Visit(ArrayInitializationNode node)
+        {
+            var elements = node.Elements.Select(e => e.Accept(this));
+            return $"{{ {string.Join(", ", elements)} }}";
+        }
+
+        public string Visit(ArrayAccessNode node)
+        {
+            return $"{node.Array.Accept(this)}[{node.Index.Accept(this)}]";
+        }
     }
 }

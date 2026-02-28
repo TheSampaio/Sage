@@ -77,7 +77,7 @@ namespace Sage.Utilities
         public object Visit(AssignmentNode node) => new
         {
             Type = "Assignment",
-            Variable = node.Name,
+            Variable = node.Target.Accept(this),
             Value = node.Expression.Accept(this)
         };
 
@@ -203,6 +203,21 @@ namespace Sage.Utilities
             Type = "MemberAccess",
             Object = node.Object.Accept(this),
             node.PropertyName
+        };
+
+        /// <summary>Visits an array initialization literal.</summary>
+        public object Visit(ArrayInitializationNode node) => new
+        {
+            Type = "ArrayInitialization",
+            Elements = node.Elements.Select(e => e.Accept(this))
+        };
+
+        /// <summary>Visits an array element access.</summary>
+        public object Visit(ArrayAccessNode node) => new
+        {
+            Type = "ArrayAccess",
+            Array = node.Array.Accept(this),
+            Index = node.Index.Accept(this)
         };
     }
 }

@@ -14,7 +14,7 @@ namespace Sage.Ast
     public class VariableDeclarationNode(
         string name,       // <--- NOME PRIMEIRO (Para casar com o Parser)
         string type,       // <--- TIPO DEPOIS
-        AstNode initializer,
+        AstNode? initializer,
         bool isConstant) : AstNode
     {
         /// <summary>
@@ -31,7 +31,7 @@ namespace Sage.Ast
         /// Gets the expression tree that initializes the variable.
         /// Note: In Sage, all declarations require an explicit initializer.
         /// </summary>
-        public AstNode Initializer { get; } = initializer;
+        public AstNode? Initializer { get; } = initializer;
 
         /// <summary>
         /// Gets a value indicating whether this declaration is a constant.

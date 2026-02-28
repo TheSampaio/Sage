@@ -1,4 +1,5 @@
 use console;
+use memory;
 
 struct Person
 {
@@ -11,9 +12,16 @@ struct Person
 
 func main(): none
 {
-    const max: i32 = 5;
+    console::print_line("=== SAGE STRESS TEST START ===");
 
-    // Loop + conditionals
+    // -------------------------------------------------
+    // 1. FOR + WHILE + ARITMÉTICA
+    // -------------------------------------------------
+
+    const max: i32 = 10;
+
+    var sum: i32 = 0;
+
     for (var i: i32 = 0; i < max; i++)
     {
         if (i % 2 == 0)
@@ -24,30 +32,124 @@ func main(): none
         {
             console::print_line("Odd: {i}");
         }
+
+        sum = sum + i;
+    }
+
+    console::print_line("Partial sum: {sum}");
+    console::print_line("===");
+
+    var counter: i32 = 0;
+
+    while (counter < 5)
+    {
+        console::print_line("While iteration: {counter}");
+        counter = counter + 1;
     }
 
     console::print_line("===");
 
-    // Struct + formatted interpolation
-    var person: Person = {
+    // -------------------------------------------------
+    // 2. ARRAY FIXO + INDEXAÇÃO
+    // -------------------------------------------------
+
+    var numbers: i32[5] = { 10, 20, 30, 40, 50 };
+
+    var idx: i32 = 0;
+
+    while (idx < 5)
+    {
+        console::print_line("numbers[{idx}] = {numbers[idx]}");
+        idx = idx + 1;
+    }
+
+    console::print_line("===");
+
+    // -------------------------------------------------
+    // 3. HEAP + PONTEIRO i32*
+    // -------------------------------------------------
+
+    const count: u64 = 100;
+
+    var raw: none* = memory::alloc(count * 4); // 4 bytes por i32
+    var ptr: i32* = raw;
+
+    var i: i32 = 0;
+
+    while (i < 100)
+    {
+        ptr[i] = i * 2;
+        i = i + 1;
+    }
+
+    console::print_line("Heap test values:");
+    console::print_line("{ptr[10]}");
+    console::print_line("{ptr[50]}");
+    console::print_line("{ptr[99]}");
+
+    memory::release(raw);
+
+    console::print_line("===");
+
+    // -------------------------------------------------
+    // 4. STRUCT + ARRAY DE STRUCTS
+    // -------------------------------------------------
+
+    var people: Person[3];
+
+    people[0] = {
         name = "Alice",
         age = 30,
-        height = 1.68,
-        money = 1528.64,
+        height = 1.65,
+        money = 1000.50,
         female = true
     };
 
-    console::print_line("Hi, I'm {person.name}.");
+    people[1] = {
+        name = "Bob",
+        age = 40,
+        height = 1.80,
+        money = 2500.00,
+        female = false
+    };
 
-    if (person.female)
+    people[2] = {
+        name = "Carol",
+        age = 22,
+        height = 1.70,
+        money = 300.75,
+        female = true
+    };
+
+    var p: i32 = 0;
+
+    while (p < 3)
     {
-        console::print_line("I am female, {person.age} years old.");
-    }
-    else
-    {
-        console::print_line("I am male, {person.age} years old.");
+        console::print_line("Person: {people[p].name}");
+        console::print_line("Age: {people[p].age}");
+        console::print_line("Balance: ${people[p].money:2f}");
+        console::print_line("---");
+        p = p + 1;
     }
 
-    console::print_line("Height: {person.height:2f}m");
-    console::print_line("Balance: ${person.money:2f}");
+    console::print_line("===");
+
+    // -------------------------------------------------
+    // 5. HEAP + STRUCT POINTER (Person*)
+    // -------------------------------------------------
+
+    var person_mem: none* = memory::alloc(3 * 32); // tamanho estimado
+    var person_ptr: Person* = person_mem;
+
+    person_ptr[0] = people[0];
+    person_ptr[1] = people[1];
+    person_ptr[2] = people[2];
+
+    console::print_line("Heap struct test:");
+    console::print_line("{person_ptr[1].name}");
+    console::print_line("{person_ptr[1].height:2f}");
+
+    memory::release(person_mem);
+
+    console::print_line("=== SAGE STRESS TEST END ===");
 }

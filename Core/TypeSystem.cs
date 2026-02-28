@@ -61,9 +61,12 @@
         {
             if (targetType == sourceType) return true;
 
-            // Void Pointer Compatibility
-            if ((targetType == "str" && sourceType == "none*") ||
-                (targetType == "none*" && sourceType == "str"))
+            // Universal Pointer Compatibility: 'none*' (void*) can implicitly cast to/from any other pointer type (including 'str')
+            bool isTargetPointer = targetType.EndsWith("*") || targetType == "str";
+            bool isSourcePointer = sourceType.EndsWith("*") || sourceType == "str";
+
+            if ((isTargetPointer && sourceType == "none*") ||
+                (targetType == "none*" && isSourcePointer))
             {
                 return true;
             }
@@ -72,6 +75,22 @@
             if (targetType == "f64" && sourceType == "f32") return true;
 
             return false;
+        }
+
+        public static bool IsArrayType(string type) => type.Contains('[') && type.EndsWith("]");
+
+        public static string GetArrayBaseType(string type)
+        {
+            if (!IsArrayType(type)) return type;
+            return type[..type.IndexOf('[')];
+        }
+
+        public static int GetArraySize(string type)
+        {
+            if (!IsArrayType(type)) return 0;
+            int start = type.IndexOf('[') + 1;
+            string sizeStr = type.Substring(start, type.IndexOf(']') - start);
+            return int.TryParse(sizeStr, out int size) ? size : 0;
         }
     }
 }

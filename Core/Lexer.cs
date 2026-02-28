@@ -218,6 +218,8 @@ namespace Sage.Core
                 ')' => TokenType.CloseParen,
                 '{' => TokenType.OpenBrace,
                 '}' => TokenType.CloseBrace,
+                '[' => TokenType.OpenBracket,
+                ']' => TokenType.CloseBracket,
                 ';' => TokenType.Semicolon,
                 ',' => TokenType.Comma,
                 ':' => TokenType.Colon,
