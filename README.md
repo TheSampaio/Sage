@@ -246,19 +246,21 @@ func main(): none
 
 ## Project Status
 
-The project is currently in **v0.5.3 (Alpha)**.
+The project is currently in **v0.6.0 (Alpha)**.
 
-- [x] **CLI & Project System** (`new`, `build`, `run`, `--version`)
-- [x] **Variable Declarations** (`var`) & **Constants** (`const`)
-- [x] **Control Flow** (`if`, `else`, `while`, `for`)
-- [x] **FFI / External Functions** (`extern`)
-- [x] **Header Tree-Shaking** (Optimized C output)
-- [x] **Logical & Comparison Operators** (`&&`, `||`, `!`, `==`, etc.)
-- [x] **Modules & Namespaces** (`::`)
-- [x] **String Interpolation** (compiled to `printf`)
-- [x] **Native Compilation** (GCC Integration)
-- [x] **Structs and Custom Types**
-- [x] **Arrays and Pointers**
+* [x] **CLI & Project System** (`new`, `build`, `run`, `--version`)
+* [x] **Variable Declarations** (`var`) & **Constants** (`const`)
+* [x] **Control Flow** (`if`, `else`, `while`, `for`)
+* [x] **FFI / External Functions** (`extern`)
+* [x] **Header Tree-Shaking** (Normalized & Optimized C output)
+* [x] **Logical & Comparison Operators** (`&&`, `||`, `!`, `==`, etc.)
+* [x] **Modules & Namespaces** (`::`)
+* [x] **String Interpolation** (Transpiled to `snprintf` with static buffers)
+* [x] **Native Compilation** (GCC Integration)
+* [x] **Structs and Custom Types**
+* [x] **Arrays and Pointers**
+* [x] **Modular Standard Library** (Libc decoupled from Compiler Core)
+* [x] **Visitor-based Transpilation** (Full separation of Header/Logic)
 
 ## License
 
