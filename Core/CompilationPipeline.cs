@@ -158,8 +158,9 @@ namespace Sage.Core
 
                 File.WriteAllText(Path.Combine(env.ObjDir, name + ".h"), new HeaderGenerator().Generate(ast));
 
-                string cCode = new CodeGenerator().Generate(ast);
+                string cCode = new CodeGenerator().Generate(ast, name); 
                 string cPath = Path.Combine(env.ObjDir, name + ".c");
+
                 File.WriteAllText(cPath, cCode);
 
                 cFiles.Add(cPath);
