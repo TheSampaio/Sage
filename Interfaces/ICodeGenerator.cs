@@ -3,16 +3,18 @@
 namespace Sage.Interfaces
 {
     /// <summary>
-    /// Defines the contract for the compiler's backend.
-    /// Responsible for transforming a validated Abstract Syntax Tree (AST) into target source code.
+    /// Defines the contract for the compiler's code generation backend.
+    /// This component is responsible for transforming a validated Abstract Syntax Tree (AST) 
+    /// into the final target source code.
     /// </summary>
     public interface ICodeGenerator
     {
         /// <summary>
-        /// Translates the provided AST into a string representation of the target language (e.g., C).
+        /// Generates target source code from a given program AST.
         /// </summary>
-        /// <param name="ast">The root node of the program to be generated.</param>
-        /// <returns>A string containing the generated source code.</returns>
-        string Generate(ProgramNode ast);
+        /// <param name="ast">The root node of the validated Abstract Syntax Tree to be processed.</param>
+        /// <param name="moduleName">The name assigned to the generated module or file.</param>
+        /// <returns>A string containing the formatted source code in the target language.</returns>
+        string Generate(ProgramNode ast, string moduleName);
     }
 }

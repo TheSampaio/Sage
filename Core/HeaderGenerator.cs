@@ -5,31 +5,97 @@ using Sage.Interfaces;
 namespace Sage.Core
 {
     /// <summary>
-    /// Generates C header files (.h) for Sage modules to facilitate modular compilation.
+    /// Traverses the Sage AST to generate C-compatible header files (.h),
+    /// including type definitions, forward declarations, and required includes.
     /// </summary>
     public class HeaderGenerator : IAstVisitor<string>
     {
+        private readonly HashSet<string> _requiredHeaders = [];
+
+        /// <summary>
+        /// Generates the full content of a C header file based on the provided AST.
+        /// </summary>
+        /// <param name="ast">The root program node.</param>
+        /// <returns>A string containing the complete header file code.</returns>
         public string Generate(ProgramNode ast)
         {
+            _requiredHeaders.Clear();
+
+            // Collect all declarations and dependencies by visiting the AST
+            string declarations = ast.Accept(this);
+
             var sb = new StringBuilder();
             sb.AppendLine("/* --- Sage Header File --- */");
             sb.AppendLine("#pragma once");
             sb.AppendLine("#include <stdint.h>");
             sb.AppendLine("#include <stdbool.h>");
 
+            foreach (var header in _requiredHeaders)
+            {
+                sb.AppendLine($"#include {header}");
+            }
+
+            // Standard Sage primitive type aliases for C compatibility
             sb.AppendLine("\n/* --- Type Definitions --- */");
+            sb.AppendLine("#ifndef SAGE_TYPES_DEFINED");
+            sb.AppendLine("#define SAGE_TYPES_DEFINED");
+            sb.AppendLine("typedef int8_t   i8;  typedef uint8_t  u8;");
+            sb.AppendLine("typedef int16_t  i16; typedef uint16_t u16;");
+            sb.AppendLine("typedef int32_t  i32; typedef uint32_t u32;");
+            sb.AppendLine("typedef int64_t  i64; typedef uint64_t u64;");
             sb.AppendLine("typedef float    f32; typedef double   f64;");
-            sb.AppendLine("typedef int32_t  i32; typedef bool     b8;");
-            sb.AppendLine("typedef char* str; typedef void     none;");
+            sb.AppendLine("typedef bool     b8;  typedef char* str;");
+            sb.AppendLine("typedef void     none;");
+            sb.AppendLine("#endif\n");
 
-            sb.AppendLine("\n/* --- Function Prototypes --- */");
-            sb.Append(ast.Accept(this));
+            sb.AppendLine("/* --- Declarations --- */");
+            sb.Append(declarations);
 
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Normalizes and adds a header file to the inclusion list.
+        /// </summary>
+        private void AddHeader(string header)
+        {
+            if (string.IsNullOrWhiteSpace(header)) return;
+
+            string normalized = (header.StartsWith('<') || header.StartsWith('"'))
+                ? header
+                : $"<{header}>";
+
+            _requiredHeaders.Add(normalized);
+        }
+
+        public string Visit(ProgramNode node)
+        {
+            var sb = new StringBuilder();
+            foreach (var stmt in node.Statements)
+            {
+                string res = stmt.Accept(this);
+                if (!string.IsNullOrEmpty(res)) sb.Append(res);
+            }
+            return sb.ToString();
+        }
+
+        public string Visit(ModuleNode node)
+        {
+            var sb = new StringBuilder();
+            foreach (var member in node.Members)
+            {
+                if (member is FunctionDeclarationNode func) func.ModuleOwner = node.Name;
+                string res = member.Accept(this);
+                if (!string.IsNullOrEmpty(res)) sb.Append(res);
+            }
             return sb.ToString();
         }
 
         public string Visit(FunctionDeclarationNode node)
         {
+            // Visit body to discover dependencies within the function scope
+            if (node.Body != null) node.Body.Accept(this);
+
             string cName = node.IsExtern
                 ? node.Name
                 : (node.Name.Equals("main", StringComparison.OrdinalIgnoreCase)
@@ -47,46 +113,63 @@ namespace Sage.Core
             return $"{prefix}{cReturnType} {cName}({paramsStr});\n";
         }
 
-        public string Visit(ModuleNode node)
+        public string Visit(StructDeclarationNode node)
         {
             var sb = new StringBuilder();
-            foreach (var func in node.Functions)
+            sb.AppendLine($"typedef struct {node.Name} {{");
+            foreach (var field in node.Fields)
             {
-                func.ModuleOwner = node.Name;
-                sb.Append(func.Accept(this));
+                sb.AppendLine($"    {TypeSystem.ToCType(field.Type)} {field.Name};");
             }
+            sb.AppendLine($"}} {node.Name};\n");
             return sb.ToString();
         }
 
-        public string Visit(ProgramNode node)
+        public string Visit(ExternBlockNode node)
         {
-            var sb = new StringBuilder();
-            foreach (var stmt in node.Statements) sb.Append(stmt.Accept(this));
-            return sb.ToString();
+            AddHeader(node.Header);
+            foreach (var decl in node.Declarations) decl.Accept(this);
+            return "";
         }
 
-        // Ignored nodes for Headers
-        public string Visit(VariableDeclarationNode node) => "";
-        public string Visit(BlockNode node) => "";
-        public string Visit(ReturnNode node) => "";
+        public string Visit(UseNode node)
+        {
+            AddHeader($"\"{node.Module}.h\"");
+            return "";
+        }
+
+        public string Visit(FunctionCallNode node)
+        {
+            foreach (var arg in node.Arguments) arg.Accept(this);
+            return "";
+        }
+
+        public string Visit(InterpolatedStringNode node)
+        {
+            // String interpolation is transpiled to snprintf, requiring stdio.h
+            AddHeader("stdio.h");
+            foreach (var part in node.Parts) part.Accept(this);
+            return "";
+        }
+
+        // --- AST Traversal Implementation ---
+        public string Visit(BlockNode node) { foreach (var s in node.Statements) s.Accept(this); return ""; }
+        public string Visit(VariableDeclarationNode node) { node.Initializer?.Accept(this); return ""; }
+        public string Visit(AssignmentNode node) { node.Target.Accept(this); node.Expression.Accept(this); return ""; }
+        public string Visit(ReturnNode node) { node.Expression.Accept(this); return ""; }
+        public string Visit(ExpressionStatementNode node) { node.Expression.Accept(this); return ""; }
+        public string Visit(IfNode node) { node.Condition.Accept(this); node.ThenBranch.Accept(this); node.ElseBranch?.Accept(this); return ""; }
+        public string Visit(WhileNode node) { node.Condition.Accept(this); node.Body.Accept(this); return ""; }
+        public string Visit(ForNode node) { node.Initializer?.Accept(this); node.Condition?.Accept(this); node.Increment?.Accept(this); node.Body.Accept(this); return ""; }
+        public string Visit(BinaryExpressionNode node) { node.Left.Accept(this); node.Right.Accept(this); return ""; }
+        public string Visit(UnaryExpressionNode node) { node.Operand.Accept(this); return ""; }
+        public string Visit(CastExpressionNode node) { node.Expression.Accept(this); return ""; }
+        public string Visit(MemberAccessNode node) { node.Object.Accept(this); return ""; }
+        public string Visit(ArrayAccessNode node) { node.Array.Accept(this); node.Index.Accept(this); return ""; }
+        public string Visit(StructInitializationNode node) { foreach (var f in node.Fields.Values) f.Accept(this); return ""; }
+        public string Visit(ArrayInitializationNode node) { foreach (var e in node.Elements) e.Accept(this); return ""; }
+
         public string Visit(LiteralNode node) => "";
         public string Visit(IdentifierNode node) => "";
-        public string Visit(BinaryExpressionNode node) => "";
-        public string Visit(AssignmentNode node) => "";
-        public string Visit(ExpressionStatementNode node) => "";
-        public string Visit(ExternBlockNode node) => "";
-        public string Visit(IfNode node) => "";
-        public string Visit(WhileNode node) => "";
-        public string Visit(ForNode node) => "";
-        public string Visit(FunctionCallNode node) => "";
-        public string Visit(UnaryExpressionNode node) => "";
-        public string Visit(UseNode node) => "";
-        public string Visit(InterpolatedStringNode node) => "";
-        public string Visit(CastExpressionNode node) => "";
-        public string Visit(StructDeclarationNode node) => "";
-        public string Visit(StructInitializationNode node) => "";
-        public string Visit(MemberAccessNode node) => "";
-        public string Visit(ArrayInitializationNode node) => "";
-        public string Visit(ArrayAccessNode node) => "";
     }
 }
