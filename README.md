@@ -5,7 +5,7 @@
 </p>
 
 **Sage** is a statically typed, compiled programming language designed for high-performance applications and systems development.
-The compiler is implemented in **C# (.NET 9)** and operates as a full toolchain: it **transpiles** Sage source code (`.sg`) into optimized **C11** code and then orchestrates a native C compiler (GCC) to produce a standalone **Windows Executable (`.exe`)**.
+The compiler is implemented in **C# (.NET 8)** and operates as a full toolchain: it **transpiles** Sage source code (`.sg`) into optimized **C11** code and then orchestrates a native C compiler (GCC) to produce a standalone **Windows Executable (`.exe`)**.
 
 The project strictly follows **SOLID principles** and **Clean Code** architecture, utilizing the **Visitor Pattern** for AST traversal, semantic analysis, and code generation.
 
